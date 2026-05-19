@@ -181,16 +181,12 @@ try {
             $hasta = $_GET['hasta'] ?? date('Y-m-d');
             $params = [$desde, $hasta];
 
-            $totales = $pdo->prepare("SELECT 
+            $totales = $pdo->prepare("SELECT
                 COUNT(*) as total_mov,
                 SUM(CASE WHEN tipo='ingreso' THEN importe ELSE 0 END) as total_ing,
                 SUM(CASE WHEN tipo='gasto' THEN ABS(importe) ELSE 0 END) as total_gasto,
-                SUM(CASE WHEN categoria_id IS NULL THEN 1 ELSE 0 END) as sin_clasificar
-                FROM movimientos WHERE fecha BETWEEN ? AND ?")->execute($params);
-            $totales = $pdo->prepare("SELECT 
-                COUNT(*) as total_mov,
-                SUM(CASE WHEN tipo='ingreso' THEN importe ELSE 0 END) as total_ing,
-                SUM(CASE WHEN tipo='gasto' THEN ABS(importe) ELSE 0 END) as total_gasto,
+                SUM(CASE WHEN tipo='ingreso' THEN 1 ELSE 0 END) as cant_ing,
+                SUM(CASE WHEN tipo='gasto' THEN 1 ELSE 0 END) as cant_gasto,
                 SUM(CASE WHEN categoria_id IS NULL THEN 1 ELSE 0 END) as sin_clasificar
                 FROM movimientos WHERE fecha BETWEEN ? AND ?");
             $totales->execute($params);

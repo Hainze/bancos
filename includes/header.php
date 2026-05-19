@@ -13,12 +13,14 @@ $pagina_actual = basename($_SERVER['PHP_SELF'], '.php');
     <link rel="stylesheet" href="/assets/css/main.css">
     <script src="/assets/js/main.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js" defer></script>
 </head>
 <body>
 
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
 <div class="app-shell">
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
             <span class="brand-icon">⬡</span>
             <div>
@@ -46,7 +48,7 @@ $pagina_actual = basename($_SERVER['PHP_SELF'], '.php');
                 <span>Reportes</span>
             </a>
 
-            <div class="nav-section-label" style="margin-top:1.5rem">Padrones</div>
+            <div class="nav-section-label">Padrones</div>
             <a href="/padrones.php?tab=categorias" class="nav-item <?= ($pagina_actual === 'padrones' && ($_GET['tab'] ?? '') === 'categorias') ? 'active' : '' ?>">
                 <span class="nav-icon">▦</span>
                 <span>Categorías</span>
@@ -64,16 +66,23 @@ $pagina_actual = basename($_SERVER['PHP_SELF'], '.php');
         <div class="sidebar-footer">
             <div class="banco-badge">
                 <span class="banco-dot"></span>
-                Banco Provincia
+                <span>Banco Provincia</span>
             </div>
         </div>
     </aside>
 
     <main class="main-content">
         <div class="topbar">
-            <h1 class="page-title"><?= isset($titulo) ? $titulo : 'Dashboard' ?></h1>
+            <div class="topbar-left">
+                <button class="hamburger" id="hamburger" aria-label="Menú">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <h1 class="page-title"><?= isset($titulo) ? $titulo : 'Dashboard' ?></h1>
+            </div>
             <div class="topbar-right">
-                <span class="date-display"><?= date('d/m/Y') ?></span>
+                <span class="period-indicator" id="topbar-period"><?= date('d/m/Y') ?></span>
             </div>
         </div>
         <div class="content-area">
