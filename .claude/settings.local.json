@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Command mysqladmin, php, python, python3 -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command winget -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command choco -ErrorAction SilentlyContinue)",
+      "PowerShell(Test-NetConnection -ComputerName 193.203.175.120 -Port 3306 -WarningAction SilentlyContinue)",
+      "PowerShell(winget --version)",
+      "PowerShell(winget install Oracle.MySQL --accept-source-agreements --accept-package-agreements)",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.4\\\\bin\\\\mysql.exe\" -h 193.203.175.120 -u u940050695_bancosuser_ \"-pBancos2026!SmartAdmin\" u940050695_bancos_dos -e \"SHOW TABLES;\" 2>&1)",
+      "PowerShell($env:MYSQL_PWD = \"Bancos2026!SmartAdmin\"; & \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.4\\\\bin\\\\mysql.exe\" -h 193.203.175.120 -u u940050695_bancosuser_ u940050695_bancos_dos -e \"SHOW TABLES;\")"
+    ]
+  }
+}
