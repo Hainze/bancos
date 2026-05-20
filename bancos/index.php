@@ -94,6 +94,30 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 </div>
 
+<!-- Modal limpiar datos de prueba -->
+<div class="modal-overlay" id="modal-limpiar">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <div class="modal-title" style="color:var(--red)">⚠ Limpiar datos de prueba</div>
+            <button class="modal-close" onclick="closeModal('modal-limpiar')">✕</button>
+        </div>
+        <p style="color:var(--sub);font-size:14px;margin-bottom:16px">
+            Esto va a eliminar <strong style="color:var(--text)">todos los movimientos y lotes importados</strong>.
+        </p>
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:12px 16px;display:flex;gap:10px;align-items:flex-start;margin-bottom:24px">
+            <span style="color:var(--red);font-size:16px;flex-shrink:0">✕</span>
+            <div style="font-size:13px;color:var(--sub)">
+                Las <strong style="color:var(--text)">categorías, palabras clave y clientes</strong> no se tocan.<br>
+                Esta acción <strong style="color:var(--red)">no se puede deshacer</strong>.
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="closeModal('modal-limpiar')">Cancelar</button>
+            <button class="btn btn-danger" id="btn-confirmar-limpiar">Sí, eliminar todo</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let chartCat = null, chartTorta = null;
 let dashDesde = '', dashHasta = '';
@@ -291,29 +315,5 @@ document.getElementById('btn-confirmar-limpiar').addEventListener('click', async
     }
 });
 </script>
-
-<!-- Modal limpiar datos de prueba -->
-<div class="modal-overlay" id="modal-limpiar">
-    <div class="modal" style="max-width:420px">
-        <div class="modal-header">
-            <div class="modal-title" style="color:var(--red)">⚠ Limpiar datos de prueba</div>
-            <button class="modal-close" onclick="closeModal('modal-limpiar')">✕</button>
-        </div>
-        <p style="color:var(--sub);font-size:14px;margin-bottom:16px">
-            Esto va a eliminar <strong style="color:var(--text)">todos los movimientos y lotes importados</strong>.
-        </p>
-        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:12px 16px;display:flex;gap:10px;align-items:flex-start;margin-bottom:24px">
-            <span style="color:var(--red);font-size:16px;flex-shrink:0">✕</span>
-            <div style="font-size:13px;color:var(--sub)">
-                Las <strong style="color:var(--text)">categorías, palabras clave y clientes</strong> no se tocan.<br>
-                Esta acción <strong style="color:var(--red)">no se puede deshacer</strong>.
-            </div>
-        </div>
-        <div style="display:flex;gap:10px;justify-content:flex-end">
-            <button class="btn btn-secondary" onclick="closeModal('modal-limpiar')">Cancelar</button>
-            <button class="btn btn-danger" id="btn-confirmar-limpiar">Sí, eliminar todo</button>
-        </div>
-    </div>
-</div>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
