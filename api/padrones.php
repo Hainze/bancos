@@ -210,6 +210,13 @@ try {
             ]);
             break;
 
+        // ── RESET DE PRUEBA ─────────────────────────
+        case 'resetear_movimientos':
+            $pdo->exec("DELETE FROM movimientos");
+            $pdo->exec("DELETE FROM lotes");
+            echo json_encode(['success' => true, 'msg' => 'Datos de prueba eliminados correctamente']);
+            break;
+
         default:
             echo json_encode(['error' => 'Acción no reconocida: ' . $action]);
     }
