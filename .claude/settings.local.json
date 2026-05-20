@@ -16,7 +16,9 @@
       "Bash(node -e \"const crypto = require\\('crypto'\\); console.log\\('node_available'\\);\")",
       "Bash(curl --version)",
       "Bash(where php *)",
-      "PowerShell(Get-Command php -ErrorAction SilentlyContinue)"
+      "PowerShell(Get-Command php -ErrorAction SilentlyContinue)",
+      "Bash(ls \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\\\\\" 2>/dev/null)",
+      "Read(//c/Users/facun/OneDrive/Desktop/bancos\" 2>/dev/**)"
     ]
   }
 }
