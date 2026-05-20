@@ -3,7 +3,7 @@
  * api/exportar_excel.php
  * Exports movements or report as CSV (compatible with Excel)
  */
-require_once dirname(__DIR__) . '/auth/check_api.php';
+require_once dirname(__DIR__, 2) . '/auth/check_api.php';
 
 $tipo    = $_GET['tipo']    ?? 'movimientos'; // movimientos | totales
 $desde   = $_GET['desde']   ?? '';

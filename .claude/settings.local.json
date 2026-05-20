@@ -8,7 +8,15 @@
       "PowerShell(winget --version)",
       "PowerShell(winget install Oracle.MySQL --accept-source-agreements --accept-package-agreements)",
       "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.4\\\\bin\\\\mysql.exe\" -h 193.203.175.120 -u u940050695_bancosuser_ \"-pBancos2026!SmartAdmin\" u940050695_bancos_dos -e \"SHOW TABLES;\" 2>&1)",
-      "PowerShell($env:MYSQL_PWD = \"Bancos2026!SmartAdmin\"; & \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.4\\\\bin\\\\mysql.exe\" -h 193.203.175.120 -u u940050695_bancosuser_ u940050695_bancos_dos -e \"SHOW TABLES;\")"
+      "PowerShell($env:MYSQL_PWD = \"Bancos2026!SmartAdmin\"; & \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.4\\\\bin\\\\mysql.exe\" -h 193.203.175.120 -u u940050695_bancosuser_ u940050695_bancos_dos -e \"SHOW TABLES;\")",
+      "Bash(php -r \"echo password_hash\\('Admin2026!', PASSWORD_BCRYPT\\);\")",
+      "Bash(python3 -c \"import bcrypt; h = bcrypt.hashpw\\(b'Admin2026!', bcrypt.gensalt\\(\\)\\); print\\(h.decode\\(\\)\\)\")",
+      "Bash(python -c \"import bcrypt; h = bcrypt.hashpw\\(b'Admin2026!', bcrypt.gensalt\\(\\)\\); print\\(h.decode\\(\\)\\)\")",
+      "Bash(node -e \"const bcrypt = require\\('bcryptjs'\\); console.log\\(bcrypt.hashSync\\('Admin2026!', 10\\)\\);\")",
+      "Bash(node -e \"const crypto = require\\('crypto'\\); console.log\\('node_available'\\);\")",
+      "Bash(curl --version)",
+      "Bash(where php *)",
+      "PowerShell(Get-Command php -ErrorAction SilentlyContinue)"
     ]
   }
 }

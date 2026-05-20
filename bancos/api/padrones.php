@@ -3,7 +3,7 @@
  * api/padrones.php
  * CRUD for categorias, palabras_clave, clientes
  */
-require_once dirname(__DIR__) . '/auth/check_api.php';
+require_once dirname(__DIR__, 2) . '/auth/check_api.php';
 header('Content-Type: application/json');
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';

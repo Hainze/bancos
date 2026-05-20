@@ -3,7 +3,7 @@
  * api/procesar_excel.php
  * Receives uploaded Excel, parses it, classifies rows, returns JSON
  */
-require_once dirname(__DIR__) . '/auth/check_api.php';
+require_once dirname(__DIR__, 2) . '/auth/check_api.php';
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
