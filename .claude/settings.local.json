@@ -18,7 +18,12 @@
       "Bash(where php *)",
       "PowerShell(Get-Command php -ErrorAction SilentlyContinue)",
       "Bash(ls \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\\\\\" 2>/dev/null)",
-      "Read(//c/Users/facun/OneDrive/Desktop/bancos\" 2>/dev/**)"
+      "Read(//c/Users/facun/OneDrive/Desktop/bancos\" 2>/dev/**)",
+      "PowerShell($lines = Get-Content \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\4f072d1a-d91d-4462-96e5-6adac0265ba9.jsonl\" | Select-Object -Skip 712 -First 4; $lines | ForEach-Object { $_.Substring\\(0, [Math]::Min\\(3000, $_.Length\\)\\) })",
+      "PowerShell($lines = Get-Content \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\4f072d1a-d91d-4462-96e5-6adac0265ba9.jsonl\" | Select-Object -Skip 716 -First 3; $lines | ForEach-Object { $_.Substring\\(0, [Math]::Min\\(5000, $_.Length\\)\\) })",
+      "PowerShell($lines = Get-Content \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\4f072d1a-d91d-4462-96e5-6adac0265ba9.jsonl\" | Select-Object -Skip 721 -First 3; $lines | ForEach-Object { $_.Substring\\(0, [Math]::Min\\(4000, $_.Length\\)\\) })",
+      "PowerShell($content = Get-Content \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\4f072d1a-d91d-4462-96e5-6adac0265ba9.jsonl\"; $cbteLines = $content | Select-String \"IVAVentasDigital_Cbte|CALETI|20260102\"; $cbteLines | Select-Object -First 3 | ForEach-Object { $_.ToString\\(\\).Substring\\(0, [Math]::Min\\(3000, $_.ToString\\(\\).Length\\)\\) })",
+      "PowerShell($content = Get-Content \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\4f072d1a-d91d-4462-96e5-6adac0265ba9.jsonl\"; $line = $content | Select-Object -Skip 737 -First 1; $line.Substring\\(0, [Math]::Min\\(5000, $line.Length\\)\\))"
     ]
   }
 }

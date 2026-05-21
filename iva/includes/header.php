@@ -41,6 +41,10 @@ $nombre_corto = explode(' ', $user['nombre'] ?? 'Usuario')[0];
                 <span class="nav-icon">≡</span>
                 <span>Historial</span>
             </a>
+            <a href="/iva/ddjj.php" class="nav-item <?= $pagina_actual === 'ddjj' ? 'active' : '' ?>">
+                <span class="nav-icon">⇩</span>
+                <span>Generar DDJJ TXT</span>
+            </a>
 
             <div class="nav-section-label">Sistema</div>
             <a href="/index.php" class="nav-item">
