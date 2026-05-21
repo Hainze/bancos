@@ -57,9 +57,11 @@ require_once __DIR__ . '/includes/header.php';
                 </div>
             </div>
             <div style="margin-top:20px;padding:14px 16px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:8px;font-size:13px;color:var(--sub)">
-                El Excel generado incluye <strong style="color:var(--text)">3 columnas vacías</strong> (Perc IIBB · Perc IVA · Imp Int)
-                que podés completar en Excel. La columna <strong style="color:var(--text)">Diferencia</strong> y las columnas
-                <strong style="color:var(--text)">*2 en pesos</strong> usan fórmulas que se actualizan automáticamente.
+                El Excel incluye <strong style="color:var(--text)">3 columnas vacías</strong> (Perc IIBB · Perc IVA · Imp Int) para completar manualmente.
+                <strong style="color:var(--text)">Diferencia</strong>, columnas <strong style="color:var(--text)">*2 en pesos</strong>
+                y <strong style="color:var(--text)">Porcentaje</strong> (IVA/Neto×100) usan fórmulas automáticas.
+                Las celdas de <strong style="color:#f59e0b">Diferencia ≠ 0</strong> se marcan en amarillo
+                y las de <strong style="color:#ef4444">Porcentaje fuera de 10,5 / 21 / 27</strong> en rojo.
             </div>
             <div style="margin-top:16px">
                 <button class="btn btn-success btn-lg" id="btn-descargar">⬇ Descargar Excel Procesado</button>

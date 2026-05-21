@@ -287,12 +287,13 @@ function detectarPeriodo(array $rows): string {
 // ════════════════════════════════════════════════════════════
 
 /**
- * Genera el XLSX procesado con 24 columnas:
+ * Genera el XLSX procesado con 25 columnas:
  * A-K  : columnas originales (Tipo Cambio negado en NC)
  * L-N  : Perc IIBB, Perc IVA, Imp Int (vacías - usuario completa)
- * O    : Total (movida)
- * P    : Diferencia = O-(H+I+J+K+L+M+N)  [fórmula]
+ * O    : Total
+ * P    : Diferencia = O-(H+I+J+K+L+M+N)  [fórmula] — celda resaltada en amarillo si ≠ 0
  * Q-X  : Neto Gravado 2..Total 2 = G*col  [fórmulas]
+ * Y    : Porcentaje = IVA 2 / Neto Gravado 2 * 100  [fórmula] — resaltada en rojo si ≠ 10,5 / 21 / 27
  */
 function generarIvaXlsx(array $registros): string {
     $headers = [
@@ -304,6 +305,7 @@ function generarIvaXlsx(array $registros): string {
         'P'=>'Diferencia',
         'Q'=>'Neto Gravado 2', 'R'=>'No Gravado 2', 'S'=>'Exento 2', 'T'=>'IVA 2',
         'U'=>'Perc IIBB 2', 'V'=>'Perc IVA 2', 'W'=>'Imp Int 2', 'X'=>'Total 2',
+        'Y'=>'Porcentaje',
     ];
 
     $sheetRows = '';
@@ -356,16 +358,52 @@ function generarIvaXlsx(array $registros): string {
             $sheetRows .= '<c r="' . $out . $rn . '"><f>G' . $rn . '*' . $orig . $rn . '</f><v>0</v></c>';
         }
 
+        // Y: Porcentaje = IVA 2 / Neto Gravado 2 * 100 (vacío si Neto Gravado 2 = 0)
+        $sheetRows .= '<c r="Y' . $rn . '"><f>IFERROR(T' . $rn . '/Q' . $rn . '*100,"")</f><v>0</v></c>';
+
         $sheetRows .= '</row>';
         $rn++;
     }
 
-    // Build XLSX zip
+    $lastRow = $rn - 1;
+
+    // Conditional formatting:
+    // dxfId=0 (amber): Diferencia != 0
+    // dxfId=1 (light red): Porcentaje presente y distinto de 10.5 / 21 / 27
+    $condFmt = '<conditionalFormatting sqref="P2:P' . $lastRow . '">'
+             . '<cfRule type="expression" dxfId="0" priority="1">'
+             . '<formula>P2&lt;&gt;0</formula>'
+             . '</cfRule>'
+             . '</conditionalFormatting>'
+             . '<conditionalFormatting sqref="Y2:Y' . $lastRow . '">'
+             . '<cfRule type="expression" dxfId="1" priority="2">'
+             . '<formula>AND(Y2&lt;&gt;"",NOT(OR(ABS(Y2-10.5)&lt;0.01,ABS(Y2-21)&lt;0.01,ABS(Y2-27)&lt;0.01)))</formula>'
+             . '</cfRule>'
+             . '</conditionalFormatting>';
+
     $sheetXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
         . ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
         . '<sheetData>' . $sheetRows . '</sheetData>'
+        . $condFmt
         . '</worksheet>';
+
+    // styles.xml with two dxf entries for conditional formatting fills
+    $stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        . '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>'
+        . '<fills count="2">'
+        . '<fill><patternFill patternType="none"/></fill>'
+        . '<fill><patternFill patternType="gray125"/></fill>'
+        . '</fills>'
+        . '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+        . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+        . '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>'
+        . '<dxfs count="2">'
+        . '<dxf><fill><patternFill patternType="solid"><fgColor rgb="FFFEF08A"/></patternFill></fill></dxf>'
+        . '<dxf><fill><patternFill patternType="solid"><fgColor rgb="FFFECACA"/></patternFill></fill></dxf>'
+        . '</dxfs>'
+        . '</styleSheet>';
 
     $contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
@@ -373,6 +411,7 @@ function generarIvaXlsx(array $registros): string {
         . '<Default Extension="xml" ContentType="application/xml"/>'
         . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
         . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        . '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
         . '</Types>';
 
     $rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -389,6 +428,7 @@ function generarIvaXlsx(array $registros): string {
     $wbRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
         . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
         . '</Relationships>';
 
     $tmpFile = sys_get_temp_dir() . '/' . uniqid('iva_out_') . '.xlsx';
@@ -399,6 +439,7 @@ function generarIvaXlsx(array $registros): string {
     $zip->addFromString('xl/workbook.xml',                 $workbook);
     $zip->addFromString('xl/_rels/workbook.xml.rels',      $wbRels);
     $zip->addFromString('xl/worksheets/sheet1.xml',        $sheetXml);
+    $zip->addFromString('xl/styles.xml',                   $stylesXml);
     $zip->close();
 
     return $tmpFile;
