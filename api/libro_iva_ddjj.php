@@ -74,6 +74,29 @@ function leerXlsxProcesado(string $path): array
     if ($za->open($path) !== true) return [];
 
     $sheetXml = $za->getFromName('xl/worksheets/sheet1.xml');
+
+    // Cargar shared strings — Excel/LibreOffice convierte inlineStr a shared strings al guardar
+    $sharedStrings = [];
+    $ssXml = $za->getFromName('xl/sharedStrings.xml');
+    if ($ssXml) {
+        $ssDom = new DOMDocument();
+        libxml_use_internal_errors(true);
+        if ($ssDom->loadXML($ssXml)) {
+            foreach ($ssDom->getElementsByTagName('si') as $si) {
+                $rNodes = $si->getElementsByTagName('r');
+                if ($rNodes->length > 0) {
+                    $str = '';
+                    foreach ($si->getElementsByTagName('t') as $t) $str .= $t->textContent;
+                    $sharedStrings[] = $str;
+                } else {
+                    $tNode = $si->getElementsByTagName('t')->item(0);
+                    $sharedStrings[] = $tNode ? $tNode->textContent : '';
+                }
+            }
+        }
+        libxml_clear_errors();
+    }
+
     $za->close();
     if (!$sheetXml) return [];
 
@@ -96,6 +119,11 @@ function leerXlsxProcesado(string $path): array
             if ($t === 'inlineStr') {
                 $node = $c->getElementsByTagName('t')->item(0);
                 $cells[$col] = $node ? trim($node->textContent) : '';
+            } elseif ($t === 's') {
+                // Shared string (Excel/LibreOffice convierte texto a este formato al guardar)
+                $vEl = $c->getElementsByTagName('v')->item(0);
+                $idx = $vEl ? (int)$vEl->textContent : 0;
+                $cells[$col] = $sharedStrings[$idx] ?? '';
             } else {
                 $vEl = $c->getElementsByTagName('v')->item(0);
                 $cells[$col] = $vEl ? $vEl->textContent : '';
