@@ -325,12 +325,13 @@ function generarDDJJTxt(array $filas): array
  */
 function generarResumenXlsx(array $tot, string $periodo): string
 {
-    // Totales de percepciones e impuestos sumados de TODOS los tipos
-    $percIIBB = 0.0; $percIva = 0.0; $impInt = 0.0;
+    // Totales sumados de TODOS los tipos
+    $percIIBB = 0.0; $percIva = 0.0; $impInt = 0.0; $noGrav = 0.0;
     foreach ($tot as $t) {
         $percIIBB += $t['percIIBB'];
         $percIva  += $t['percIva'];
         $impInt   += $t['impInt'];
+        $noGrav   += $t['noGrav'];
     }
 
     // Abreviaturas para legibilidad
@@ -372,6 +373,7 @@ function generarResumenXlsx(array $tot, string $periodo): string
         ['section', 'FACTURAS C (Monotributistas)'],
         ['data',    'Total',                   round(abs($fc['total']), 2)],
         ['empty'],
+        ['bold',    'NO GRAVADO',              round(abs($noGrav),   2)],
         ['bold',    'PERCEPCIÓN IIBB',         round(abs($percIIBB), 2)],
         ['bold',    'PERCEPCIÓN IVA',          round(abs($percIva),  2)],
         ['bold',    'IMPUESTO INTERNO',        round(abs($impInt),   2)],
