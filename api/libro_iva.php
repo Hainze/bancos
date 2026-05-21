@@ -363,6 +363,22 @@ function generarIvaXlsx(array $registros): string {
 
         $sheetRows .= '</row>';
         $rn++;
+
+        // Breakdown: si alícuota mixta, agregar 2 renglones con la descomposición
+        $breakdown = calcBreakdown((float)$reg['neto_gravado'], (float)$reg['iva_monto']);
+        if ($breakdown) {
+            $tc = (float)$reg['tipo_cambio'];
+            foreach ($breakdown as $brow) {
+                $sheetRows .= '<row r="' . $rn . '">';
+                $sheetRows .= '<c r="B' . $rn . '" t="inlineStr"><is><t>' . xe($brow['label']) . '</t></is></c>';
+                $sheetRows .= '<c r="H' . $rn . '"><v>' . $brow['neto'] . '</v></c>';
+                $sheetRows .= '<c r="K' . $rn . '"><v>' . $brow['iva']  . '</v></c>';
+                $sheetRows .= '<c r="Q' . $rn . '"><v>' . round($tc * $brow['neto'], 2) . '</v></c>';
+                $sheetRows .= '<c r="T' . $rn . '"><v>' . round($tc * $brow['iva'],  2) . '</v></c>';
+                $sheetRows .= '</row>';
+                $rn++;
+            }
+        }
     }
 
     $lastRow = $rn - 1;
@@ -377,7 +393,7 @@ function generarIvaXlsx(array $registros): string {
              . '</conditionalFormatting>'
              . '<conditionalFormatting sqref="Y2:Y' . $lastRow . '">'
              . '<cfRule type="expression" dxfId="1" priority="2">'
-             . '<formula>AND(Y2&lt;&gt;"",NOT(OR(ABS(Y2-10.5)&lt;0.01,ABS(Y2-21)&lt;0.01,ABS(Y2-27)&lt;0.01)))</formula>'
+             . '<formula>AND(ISNUMBER(Y2),NOT(OR(ABS(Y2-10.5)&lt;0.01,ABS(Y2-21)&lt;0.01,ABS(Y2-27)&lt;0.01)))</formula>'
              . '</cfRule>'
              . '</conditionalFormatting>';
 
@@ -443,6 +459,44 @@ function generarIvaXlsx(array $registros): string {
     $zip->close();
 
     return $tmpFile;
+}
+
+/**
+ * Descompone un comprobante con alícuota mixta en 2 porciones estándar.
+ * Sistema: N1+N2=neto ; r1*N1+r2*N2=iva → N2=(iva-r1*neto)/(r2-r1)
+ * Devuelve null si la alícuota ya es estándar o no es descomponible.
+ */
+function calcBreakdown(float $neto, float $iva): ?array {
+    if ($neto < 0.01) return null;
+    $pct = $iva / $neto * 100;
+
+    if (abs($pct - 10.5) < 0.01 || abs($pct - 21.0) < 0.01 || abs($pct - 27.0) < 0.01) return null;
+
+    // Mezcla 10,5 % + 21 %
+    if ($pct > 10.51 && $pct < 20.99) {
+        $N2 = ($iva - 0.105 * $neto) / 0.105; // neto al 21 %
+        $N1 = $neto - $N2;                      // neto al 10,5 %
+        if ($N1 > 0 && $N2 > 0) {
+            return [
+                ['label' => '↳ 10,5 %', 'neto' => round($N1, 2), 'iva' => round($N1 * 0.105, 2)],
+                ['label' => '↳ 21 %',   'neto' => round($N2, 2), 'iva' => round($N2 * 0.21,  2)],
+            ];
+        }
+    }
+
+    // Mezcla 21 % + 27 %
+    if ($pct > 21.01 && $pct < 26.99) {
+        $N2 = ($iva - 0.21 * $neto) / 0.06; // neto al 27 %
+        $N1 = $neto - $N2;                    // neto al 21 %
+        if ($N1 > 0 && $N2 > 0) {
+            return [
+                ['label' => '↳ 21 %', 'neto' => round($N1, 2), 'iva' => round($N1 * 0.21, 2)],
+                ['label' => '↳ 27 %', 'neto' => round($N2, 2), 'iva' => round($N2 * 0.27, 2)],
+            ];
+        }
+    }
+
+    return null;
 }
 
 function xe(string $s): string {
