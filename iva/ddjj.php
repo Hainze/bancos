@@ -48,7 +48,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="card" id="resultado-card" style="display:none">
             <div class="card-title">Archivos generados</div>
 
-            <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:20px">
+            <div class="stats-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:20px">
                 <div class="stat-card green">
                     <div class="stat-label">Período</div>
                     <div class="stat-value" style="font-size:18px" id="res-periodo">—</div>
@@ -61,17 +61,24 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="stat-label">Líneas Cbte.txt</div>
                     <div class="stat-value" id="res-cbte">—</div>
                 </div>
+                <div class="stat-card" style="border-color:rgba(139,92,246,0.3)">
+                    <div class="stat-label">Resumen Excel</div>
+                    <div class="stat-value" style="font-size:18px">✓</div>
+                </div>
             </div>
 
             <div style="display:flex;gap:12px;flex-wrap:wrap">
                 <button class="btn btn-success btn-lg" id="btn-dl-alic">
-                    ⬇ Descargar Alic.txt
+                    ⬇ Alic.txt
                 </button>
                 <button class="btn btn-success btn-lg" id="btn-dl-cbte">
-                    ⬇ Descargar Cbte.txt
+                    ⬇ Cbte.txt
                 </button>
                 <button class="btn btn-primary btn-lg" id="btn-dl-zip">
-                    ⬇ Descargar ZIP (ambos)
+                    ⬇ TXT (ambos)
+                </button>
+                <button class="btn btn-lg" style="background:rgba(139,92,246,0.15);color:#a78bfa;border:1px solid rgba(139,92,246,0.3)" id="btn-dl-excel">
+                    ⬇ Resumen Excel
                 </button>
             </div>
 
@@ -157,6 +164,7 @@ require_once __DIR__ . '/includes/header.php';
 let currentFile = null;
 let alicB64 = null;
 let cbteB64 = null;
+let resumenB64 = null;
 let nombreBase = 'IVA';
 
 initDropZone('upload-zone', file => setFile(file));
@@ -178,6 +186,7 @@ document.getElementById('btn-limpiar').addEventListener('click', () => {
     document.getElementById('btn-generar').disabled = true;
     document.getElementById('btn-limpiar').style.display = 'none';
     document.getElementById('resultado-card').style.display = 'none';
+    resumenB64 = null;
 });
 
 document.getElementById('btn-generar').addEventListener('click', async () => {
@@ -198,6 +207,7 @@ document.getElementById('btn-generar').addEventListener('click', async () => {
 
         alicB64    = data.alic_b64;
         cbteB64    = data.cbte_b64;
+        resumenB64 = data.resumen_b64;
         nombreBase = data.nombre_base || 'IVA';
 
         document.getElementById('res-periodo').textContent = data.periodo || '—';
@@ -226,16 +236,24 @@ document.getElementById('btn-dl-cbte').addEventListener('click', () => {
 
 document.getElementById('btn-dl-zip').addEventListener('click', () => {
     if (!alicB64 || !cbteB64) return;
-    // Descargar ambos archivos secuencialmente
     downloadTxt(alicB64, nombreBase + '_IVAVentasDigital_Alic.txt');
     setTimeout(() => downloadTxt(cbteB64, nombreBase + '_IVAVentasDigital_Cbte.txt'), 300);
 });
 
+document.getElementById('btn-dl-excel').addEventListener('click', () => {
+    if (resumenB64) downloadBlob(resumenB64, nombreBase + '_Resumen.xlsx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+});
+
 function downloadTxt(b64, filename) {
+    downloadBlob(b64, filename, 'text/plain');
+}
+
+function downloadBlob(b64, filename, mime) {
     const bytes = atob(b64);
     const arr   = new Uint8Array(bytes.length);
     for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-    const blob  = new Blob([arr], { type: 'text/plain' });
+    const blob  = new Blob([arr], { type: mime });
     const url   = URL.createObjectURL(blob);
     const a     = document.createElement('a');
     a.href      = url;
