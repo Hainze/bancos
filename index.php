@@ -54,13 +54,13 @@ $tools = [
     [
         'id'          => 'facturacion',
         'nombre'      => 'Facturación',
-        'descripcion' => 'Emisión de facturas electrónicas AFIP, notas de crédito/débito y libro de ventas.',
+        'descripcion' => 'Registro de facturas de compra y venta por cliente, con desglose de IVA, percepciones e informes mensuales.',
         'icono'       => '🧾',
         'color'       => 'green',
-        'url'         => '#',
-        'badge'       => 'Próximamente',
-        'badge_type'  => 'muted',
-        'subtitulo'   => 'AFIP e-Factura',
+        'url'         => '/facturacion/index.php',
+        'badge'       => 'Activo',
+        'badge_type'  => 'green',
+        'subtitulo'   => 'Compras · Ventas · Informes',
         'stats'       => false,
     ],
     [

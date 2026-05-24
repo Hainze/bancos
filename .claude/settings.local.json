@@ -23,7 +23,14 @@
       "PowerShell($lines = Get-Content \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\4f072d1a-d91d-4462-96e5-6adac0265ba9.jsonl\" | Select-Object -Skip 716 -First 3; $lines | ForEach-Object { $_.Substring\\(0, [Math]::Min\\(5000, $_.Length\\)\\) })",
       "PowerShell($lines = Get-Content \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\4f072d1a-d91d-4462-96e5-6adac0265ba9.jsonl\" | Select-Object -Skip 721 -First 3; $lines | ForEach-Object { $_.Substring\\(0, [Math]::Min\\(4000, $_.Length\\)\\) })",
       "PowerShell($content = Get-Content \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\4f072d1a-d91d-4462-96e5-6adac0265ba9.jsonl\"; $cbteLines = $content | Select-String \"IVAVentasDigital_Cbte|CALETI|20260102\"; $cbteLines | Select-Object -First 3 | ForEach-Object { $_.ToString\\(\\).Substring\\(0, [Math]::Min\\(3000, $_.ToString\\(\\).Length\\)\\) })",
-      "PowerShell($content = Get-Content \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\4f072d1a-d91d-4462-96e5-6adac0265ba9.jsonl\"; $line = $content | Select-Object -Skip 737 -First 1; $line.Substring\\(0, [Math]::Min\\(5000, $line.Length\\)\\))"
+      "PowerShell($content = Get-Content \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\4f072d1a-d91d-4462-96e5-6adac0265ba9.jsonl\"; $line = $content | Select-Object -Skip 737 -First 1; $line.Substring\\(0, [Math]::Min\\(5000, $line.Length\\)\\))",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "PowerShell(ls \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\" -Exclude \".git\" | Format-Table Name, @{N=\"Type\"; E={if\\($_.PSIsContainer\\) { \"DIR\" } else { \"FILE\" }}})",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\\\\facturacion\")",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\\\\facturacion\\\\includes\")",
+      "Bash(Write-Host \"Dirs created\")"
     ]
   }
 }
