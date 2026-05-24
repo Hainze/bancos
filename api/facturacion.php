@@ -456,6 +456,7 @@ switch ($action) {
             foreach ($m['compras'] as &$v) $v = round($v, 2);
             foreach ($m['ventas']  as &$v) $v = round($v, 2);
         }
+        unset($m); // Break reference to prevent last element from being overwritten in next loop
 
         // Grand totals
         $totC = ['neto'=>0,'iva'=>0,'no_gravado'=>0,'perc_iibb'=>0,'perc_iva'=>0,'imp_interno'=>0,'imp_interno_gasoil'=>0,'total'=>0];
