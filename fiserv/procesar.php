@@ -203,108 +203,122 @@ function parseFiservHeader(text) {
     return h;
 }
 
+// Extrae los ítems de una sección de texto (líneas +/- y IMPORTE NETO)
+function parseLineItems(chunk) {
+    const v = {
+        ventas_contado:0, arancel:0, iva_arancel:0, arancel_cuotas:0,
+        iva_arancel_cuotas:0, promo_cuota_ahora:0, dto_financ_cuotas:0,
+        iva_ri_dto_financ:0, dto_ventas_fin_adq:0, per_bai_brdn:0,
+        ret_iibb_sirtac:0, iva_promo_cuota:0, iva_dto_fin_adq:0,
+        perc_iva_1_5:0, perc_iva_3:0, cargo_terminal:0,
+        cargo_sist_cuotas:0, iva_ri_sist_cuotas:0, qr_perc_iva:0, qr_ret_iibb:0
+    };
+    let acreditado = null;
+
+    for (const line of chunk.split('\n')) {
+        const t = line.trim();
+
+        const mNeto = t.match(/IMPORTE\s+NETO\s+DE\s+PAGOS\s+\$\s*([\d.,]+)\s*(-?)/i);
+        if (mNeto) {
+            const val = parseAmount(mNeto[1]);
+            acreditado = mNeto[2] === '-' ? -val : val;
+            continue;
+        }
+
+        const mL = t.match(/^([-+])\s+(.+?)\s+\$\s*([\d.,]+)\s*$/);
+        if (!mL) continue;
+
+        const sign  = mL[1];
+        const desc  = mL[2];
+        const amt   = parseAmount(mL[3]);
+        const delta = sign === '-' ? amt : -amt;
+
+        if      (/VENTAS\s+C\/DESCUENTO\s+CONTADO/i.test(desc))
+            v.ventas_contado     += sign === '+' ? amt : -amt;
+        else if (/IVA\s+ARANCEL\s+CUOTAS/i.test(desc))
+            v.iva_arancel_cuotas += delta;
+        else if (/ARANCEL\s+CUOTAS/i.test(desc))
+            v.arancel_cuotas     += delta;
+        else if (/IVA\s+CRED\.?FISC.*S\/ARANC/i.test(desc))
+            v.iva_arancel        += delta;
+        else if (/^ARANCEL\s*$/i.test(desc))
+            v.arancel            += delta;
+        else if (/IVA\s+PROMO\s+CUOTA\s+AHORA/i.test(desc))
+            v.iva_promo_cuota    += delta;
+        else if (/PROMO\s+CUOTA\s+AHORA/i.test(desc))
+            v.promo_cuota_ahora  += delta;
+        else if (/DESCUENTO\s+FINANC\s+OTORG/i.test(desc))
+            v.dto_financ_cuotas  += delta;
+        else if (/IVA\s+RI\s+CRED.*S\/DTO/i.test(desc))
+            v.iva_ri_dto_financ  += delta;
+        else if (/DTO\s+S\/VENTAS\s+FIN\s+ADQ/i.test(desc))
+            v.dto_ventas_fin_adq += delta;
+        else if (/IVA\s+S\/DTO\s+FIN\s+ADQ/i.test(desc))
+            v.iva_dto_fin_adq    += delta;
+        else if (/PER\s+B\.?A\.?I/i.test(desc))
+            v.per_bai_brdn       += delta;
+        else if (/RETENCION\s+ING\.?\s*BRUTOS.*SIRTAC/i.test(desc))
+            v.ret_iibb_sirtac    += delta;
+        else if (/PERCEPCION\s+IVA\s+R\.?G\.?\s*2408\s+1[,.]?5/i.test(desc))
+            v.perc_iva_1_5       += delta;
+        else if (/PERCEPCION\s+IVA\s+R\.?G\.?\s*2408\s+3/i.test(desc))
+            v.perc_iva_3         += delta;
+        else if (/CARGO\s+TERMINAL\s+FISERV/i.test(desc))
+            v.cargo_terminal     += delta;
+        else if (/CARGO\s+SISTEMA\s+CUOTAS\s+MENS/i.test(desc))
+            v.cargo_sist_cuotas  += delta;
+        else if (/IVA\s+RI\s+SIST\s+CUOTAS/i.test(desc))
+            v.iva_ri_sist_cuotas += delta;
+        else if (/QR\s+PERCEPCION\s+IVA/i.test(desc))
+            v.qr_perc_iva        += delta;
+        else if (/QR\s+RETENCION\s+IIBB/i.test(desc))
+            v.qr_ret_iibb        += delta;
+    }
+    return { v, acreditado };
+}
+
 function parseFiservLiquidaciones(text) {
     const liquidaciones = [];
     text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
     const parts = text.split(/(?=F\.?\s*de\s+Pago\s*:)/i);
 
+    // pendingItems: ítems del bloque anterior sin fecha/nro (formato débito)
+    let pendingItems = null;
+
     for (const chunk of parts) {
         if (!/^F\.?\s*de\s+Pago\s*:/i.test(chunk.trimStart())) continue;
 
         const flat = chunk.replace(/\s+/g, ' ');
 
-        let nro_liq = '';
         const mNro = flat.match(/Nro\.?\s*Liq[\s:.]*(\d+)/i);
-        if (mNro) nro_liq = mNro[1];
-
-        let fecha_pago = null;
-        const mFp = flat.match(/el\s+d[íi]a\s+(\d{2}\/\d{2}\/\d{4})/i);
-        if (mFp) fecha_pago = parseDate(mFp[1]);
-
-        let fecha_pres = null;
+        const mFp  = flat.match(/el\s+d[íi]a\s+(\d{2}\/\d{2}\/\d{4})/i);
         const mFpr = flat.match(/F\.?\s*Pres\.?\s+(\d{2}\/\d{2}\/\d{4})/i);
-        if (mFpr) fecha_pres = parseDate(mFpr[1]);
 
-        if (!nro_liq && !fecha_pago) continue;
+        const nro_liq    = mNro ? mNro[1] : '';
+        const fecha_pago = mFp  ? parseDate(mFp[1])  : null;
+        const fecha_pres = mFpr ? parseDate(mFpr[1]) : null;
 
-        const v = {
-            ventas_contado:0, arancel:0, iva_arancel:0, arancel_cuotas:0,
-            iva_arancel_cuotas:0, promo_cuota_ahora:0, dto_financ_cuotas:0,
-            iva_ri_dto_financ:0, dto_ventas_fin_adq:0, per_bai_brdn:0,
-            ret_iibb_sirtac:0, iva_promo_cuota:0, iva_dto_fin_adq:0,
-            perc_iva_1_5:0, perc_iva_3:0, cargo_terminal:0,
-            cargo_sist_cuotas:0, iva_ri_sist_cuotas:0, qr_perc_iva:0, qr_ret_iibb:0
-        };
-        let acreditado = null;
+        const items    = parseLineItems(chunk);
+        const hasItems = items.acreditado !== null || Object.values(items.v).some(x => x !== 0);
 
-        for (const line of chunk.split('\n')) {
-            const t = line.trim();
-
-            // IMPORTE NETO DE PAGOS — el "-" final indica débito
-            const mNeto = t.match(/IMPORTE\s+NETO\s+DE\s+PAGOS\s+\$\s*([\d.,]+)\s*(-?)/i);
-            if (mNeto) {
-                const val = parseAmount(mNeto[1]);
-                acreditado = mNeto[2] === '-' ? -val : val;
-                continue;
-            }
-
-            // Líneas con signo: "- DESCRIPCION $ MONTO" o "+ DESCRIPCION $ MONTO"
-            const mL = t.match(/^([-+])\s+(.+?)\s+\$\s*([\d.,]+)\s*$/);
-            if (!mL) continue;
-
-            const sign  = mL[1];
-            const desc  = mL[2];
-            const amt   = parseAmount(mL[3]);
-            const delta = sign === '-' ? amt : -amt;
-
-            if      (/VENTAS\s+C\/DESCUENTO\s+CONTADO/i.test(desc))
-                v.ventas_contado     += sign === '+' ? amt : -amt;
-            else if (/IVA\s+ARANCEL\s+CUOTAS/i.test(desc))
-                v.iva_arancel_cuotas += delta;
-            else if (/ARANCEL\s+CUOTAS/i.test(desc))
-                v.arancel_cuotas     += delta;
-            else if (/IVA\s+CRED\.?FISC.*S\/ARANC/i.test(desc))
-                v.iva_arancel        += delta;
-            else if (/^ARANCEL\s*$/i.test(desc))
-                v.arancel            += delta;
-            else if (/IVA\s+PROMO\s+CUOTA\s+AHORA/i.test(desc))
-                v.iva_promo_cuota    += delta;
-            else if (/PROMO\s+CUOTA\s+AHORA/i.test(desc))
-                v.promo_cuota_ahora  += delta;
-            else if (/DESCUENTO\s+FINANC\s+OTORG/i.test(desc))
-                v.dto_financ_cuotas  += delta;
-            else if (/IVA\s+RI\s+CRED.*S\/DTO/i.test(desc))
-                v.iva_ri_dto_financ  += delta;
-            else if (/DTO\s+S\/VENTAS\s+FIN\s+ADQ/i.test(desc))
-                v.dto_ventas_fin_adq += delta;
-            else if (/IVA\s+S\/DTO\s+FIN\s+ADQ/i.test(desc))
-                v.iva_dto_fin_adq    += delta;
-            else if (/PER\s+B\.?A\.?I/i.test(desc))
-                v.per_bai_brdn       += delta;
-            else if (/RETENCION\s+ING\.?\s*BRUTOS.*SIRTAC/i.test(desc))
-                v.ret_iibb_sirtac    += delta;
-            else if (/PERCEPCION\s+IVA\s+R\.?G\.?\s*2408\s+1[,.]?5/i.test(desc))
-                v.perc_iva_1_5       += delta;
-            else if (/PERCEPCION\s+IVA\s+R\.?G\.?\s*2408\s+3/i.test(desc))
-                v.perc_iva_3         += delta;
-            else if (/CARGO\s+TERMINAL\s+FISERV/i.test(desc))
-                v.cargo_terminal     += delta;
-            else if (/CARGO\s+SISTEMA\s+CUOTAS\s+MENS/i.test(desc))
-                v.cargo_sist_cuotas  += delta;
-            else if (/IVA\s+RI\s+SIST\s+CUOTAS/i.test(desc))
-                v.iva_ri_sist_cuotas += delta;
-            else if (/QR\s+PERCEPCION\s+IVA/i.test(desc))
-                v.qr_perc_iva        += delta;
-            else if (/QR\s+RETENCION\s+IIBB/i.test(desc))
-                v.qr_ret_iibb        += delta;
+        // Bloque sin fecha/nro (ej: encabezado de tabla en débito)
+        // Si tiene ítems, los guardamos para el siguiente bloque
+        if (!nro_liq && !fecha_pago) {
+            if (hasItems) pendingItems = items;
+            continue;
         }
 
+        // Bloque con fecha/nro: usar ítems propios o los guardados (formato débito)
+        const use = hasItems ? items : (pendingItems || items);
+        pendingItems = null;
+
+        const { v, acreditado: rawAcred } = use;
         let total_descuentos = 0;
         for (const [k, val] of Object.entries(v)) {
             if (k !== 'ventas_contado' && val > 0) total_descuentos += val;
         }
-        if (acreditado === null) acreditado = v.ventas_contado - total_descuentos;
+        const acreditado = rawAcred !== null ? rawAcred : v.ventas_contado - total_descuentos;
 
         const r2 = n => Math.round(n * 100) / 100;
         liquidaciones.push({
