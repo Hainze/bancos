@@ -1,0 +1,35 @@
+Ahora en la sección Reportes Consolidados, la vamos a cambiar por Fiserv
+Que serian las tarjetas de crédito que entran
+American expres, MasterCard, visa, etc
+Yo quiero crear un sistema que extraiga información de los PDF que me suministra la empresa Fiserv
+Y crear un excel con las siguientes columnas
+VENTAS C/DESCUENTO CONTADO (seria lo que paga el cliente)
+ARANCEL (es un descuento de fiserv)
+IVA CRED FISC COMERCIO S/ARANC 21% (es un descuento de fiserv)
+ARANCEL CUOTAS (es un descuento de fiserv)
+IVA ARANCEL CUOTAS 21% (es un descuento de fiserv)
+PROMO CUOTA AHORA SIMPLE (es un descuento de fiserv)
+DESCUENTO FINANC OTORG. CUOTAS (es un descuento de fiserv)
+IVA RI CRED FISC COMERCIO S/DTO F.OTORG 10,5% (es un descuento de fiserv)
+DTO S/VENTAS FIN ADQ CONT (es un descuento de fiserv)
+PER B.A.I. BRDN 01/04 (es un descuento de fiserv)
+RETENCION ING. BRUTOS BSAS SIRTAC (es un descuento de fiserv)
+IVA PROMO CUOTA AHORA SIMPLE 21% (es un descuento de fiserv)
+IVA S/DTO FIN ADQ CONT 21% (es un descuento de fiserv)
+PERCEPCION IVA R.G. 2408 1,50% (es un descuento de fiserv)
+PERCEPCION IVA R.G. 2408 3% (es un descuento de fiserv)
+CARGO TERMINAL FISERV (es un descuento de fiserv)
+CARGO SISTEMA CUOTAS MENS (es un descuento de fiserv)
+IVA RI SIST CUOTAS (es un descuento de fiserv)
+QR PERCEPCION IVA (es un descuento de fiserv)
+QR RETENCION IIBB BS.AS. (es un descuento de fiserv)
+TOTAL (esto seria la suma de todos los descuentos)
+ACREDITADO (esto seria la diferencia entre lo que pago el cliente menos el total de todos los descuentos, este monto es el que le llega a la empresa)
+Ves que la mayoría son descuentos
+Pero la mayoría van a estar en cero
+Quiero que el sistema sea asi
+Yo adjunto el pdf, y me devuelve un excel con todas esas columnas completadas
+O sea, por cada pdf pongo, me tiene que tirar un excel diferente, pero a la vez se tienen que ir sumando los resultados en el dashboard, asi después vemos todos los graficos en el inicio, para ver todo lo que entro y todo lo que descontó en el mes
+Si llega haber 2 de estos en un mismo movimiento "VENTAS C/DESCUENTO CONTADO" sumalos 
+En algunos no va aparecer esto "VENTAS C/DESCUENTO CONTADO" déjalo en cero, pero seguramente si tenga el descuento de "QR PERCEPCION IVA 3337" y el descuento "QR RETENCION IIBB BS. AS."
+Tomate tu tiempo para crearlo al sistema, pregúntame si necesitas algo mas

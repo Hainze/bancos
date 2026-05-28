@@ -30,7 +30,11 @@
       "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\\\\facturacion\")",
       "Bash(Out-Null)",
       "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\\\\facturacion\\\\includes\")",
-      "Bash(Write-Host \"Dirs created\")"
+      "Bash(Write-Host \"Dirs created\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\memory\" 2>/dev/null; echo \"ok\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\facun\\.claude\\projects\\c--Users-facun-OneDrive-Desktop-bancos"
     ]
   }
 }
