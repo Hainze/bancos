@@ -37,3 +37,5 @@ Tomate tu tiempo para crearlo al sistema, pregúntame si necesitas algo mas
 Ya lo creaste, pero hay errores, te adjunto un archivo y corregi los errores
 
 Joya, avanzaste un poco mas
+
+Mira el cartel que me tira "No se encontraron liquidaciones en el PDF. Verificá que sea un resumen Fiserv validos"

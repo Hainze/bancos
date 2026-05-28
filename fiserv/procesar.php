@@ -47,6 +47,13 @@ require_once __DIR__ . '/includes/header.php';
         <button class="btn btn-primary" id="btn-subir" disabled style="flex:1">
             <span id="btn-text">⬆ Subir y procesar</span>
         </button>
+        <button class="btn btn-secondary" id="btn-debug" disabled title="Ver texto extraído del PDF (diagnóstico)" style="min-width:90px">
+            🔍 Debug
+        </button>
+    </div>
+    <div id="debug-output" style="display:none;margin-top:16px">
+        <div style="font-size:12px;color:var(--sub);margin-bottom:6px">Texto extraído del PDF (primeros 4000 caracteres):</div>
+        <textarea id="debug-text" readonly style="width:100%;height:220px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:11px;color:var(--text);resize:vertical"></textarea>
     </div>
 </div>
 
@@ -139,15 +146,38 @@ function setFile(f) {
     document.getElementById('file-size').textContent = (f.size / 1024).toFixed(1) + ' KB';
     fileInfo.style.display = 'block';
     btnSubir.disabled = false;
+    document.getElementById('btn-debug').disabled = false;
     fileInput._file = f;
 }
 
 function clearFile() {
     fileInfo.style.display = 'none';
     btnSubir.disabled = true;
+    document.getElementById('btn-debug').disabled = true;
+    document.getElementById('debug-output').style.display = 'none';
     fileInput.value = '';
     fileInput._file = null;
 }
+
+document.getElementById('btn-debug').addEventListener('click', async () => {
+    const f = fileInput._file || fileInput.files[0];
+    if (!f) return;
+    const btn = document.getElementById('btn-debug');
+    btn.disabled = true; btn.textContent = '…';
+    const form = new FormData();
+    form.append('pdf', f);
+    form.append('debug', '1');
+    try {
+        const res  = await fetch('/fiserv/api/subir_pdf.php', { method: 'POST', body: form });
+        const data = await res.json();
+        const out  = document.getElementById('debug-output');
+        const ta   = document.getElementById('debug-text');
+        out.style.display = 'block';
+        ta.value = data.debug_text || data.error || JSON.stringify(data);
+        out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch(e) { toast('Error: ' + e.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = '🔍 Debug'; }
+});
 
 document.getElementById('btn-subir').addEventListener('click', async () => {
     const f = fileInput._file || fileInput.files[0];

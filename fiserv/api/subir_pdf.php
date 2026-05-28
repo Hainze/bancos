@@ -42,6 +42,11 @@ if (empty(trim($text))) {
     echo json_encode(['error' => 'No se pudo extraer texto del PDF. Verificá que no sea un PDF escaneado']); exit;
 }
 
+// ── Modo debug: devuelve el texto crudo para diagnóstico ─────────────────────
+if (!empty($_POST['debug'])) {
+    echo json_encode(['debug_text' => substr($text, 0, 4000)]); exit;
+}
+
 // ── Extraer header del PDF ───────────────────────────────────────────────────
 $header = parseFiservHeader($text);
 
@@ -197,9 +202,13 @@ function parseFiservLiquidaciones(string $text): array {
         $fecha_pago = null;
         $fecha_pres = null;
 
-        if (preg_match('/Nro\.?\s*Liq[:\s.]*(\d+)/i', $fdePago, $m))               $nro_liq    = $m[1];
-        if (preg_match('/el\s+d[íi]a\s+(\d{2}\/\d{2}\/\d{4})/i', $fdePago, $m))   $fecha_pago = parseDate($m[1]);
-        if (preg_match('/F\.?\s*Pres(?:\.|\s)\s*(\d{2}\/\d{2}\/\d{4})/i', $fdePago, $m)) $fecha_pres = parseDate($m[1]);
+        // Normalizar todo el chunk a una sola línea para encontrar metadatos aunque
+        // el PDF extraiga cada celda de la tabla F.de Pago en líneas separadas
+        $chunkFlat = preg_replace('/\s+/', ' ', $chunk);
+
+        if (preg_match('/Nro\.?\s*Liq[:\s.]*(\d+)/i', $chunkFlat, $m))               $nro_liq    = $m[1];
+        if (preg_match('/el\s+d[íi]a\s+(\d{2}\/\d{2}\/\d{4})/i', $chunkFlat, $m))   $fecha_pago = parseDate($m[1]);
+        if (preg_match('/F\.?\s*Pres\.?\s+(\d{2}\/\d{2}\/\d{4})/i', $chunkFlat, $m)) $fecha_pres = parseDate($m[1]);
 
         if (empty($nro_liq) && $fecha_pago === null) continue;
 
@@ -214,6 +223,7 @@ function parseFiservLiquidaciones(string $text): array {
 
         $acreditado = null;
 
+        // Intentar parseo línea a línea (funciona si el PDF extrae cada ítem en una sola línea)
         foreach ($lines as $line) {
             $t = trim($line);
 
@@ -225,13 +235,12 @@ function parseFiservLiquidaciones(string $text): array {
             }
 
             // Líneas con signo: "- DESCRIPCION $ IMPORTE" o "+ DESCRIPCION $ IMPORTE"
-            // '-' = débito (descuento al comercio)  '+' = crédito (devolución al comercio)
             if (!preg_match('/^([-+])\s+(.+?)\s+\$\s*([\d.,]+)\s*$/', $t, $m)) continue;
 
             $sign  = $m[1];
             $desc  = $m[2];
             $amt   = parseAmount($m[3]);
-            $delta = ($sign === '-') ? $amt : -$amt; // positivo = descuento, negativo = crédito
+            $delta = ($sign === '-') ? $amt : -$amt;
 
             if      (preg_match('/VENTAS\s+C\/DESCUENTO\s+CONTADO/i', $desc))
                 $v['ventas_contado']     += ($sign === '+') ? $amt : -$amt;
@@ -275,6 +284,14 @@ function parseFiservLiquidaciones(string $text): array {
                 $v['qr_ret_iibb']        += $delta;
         }
 
+        // ── Fallback: si el parseo línea a línea no encontró nada, buscar en chunk aplanado ──
+        // (cubre el caso donde el PDF extrae cada celda/columna en líneas separadas)
+        $anyValue = false;
+        foreach ($v as $val) { if ($val != 0) { $anyValue = true; break; } }
+        if (!$anyValue && $acreditado === null) {
+            extractFromChunk($chunkFlat, $v, $acreditado);
+        }
+
         // TOTAL = suma de columnas con valor positivo neto (descuentos reales)
         $total_descuentos = 0.0;
         foreach ($v as $k => $val) {
@@ -316,4 +333,70 @@ function parseFiservLiquidaciones(string $text): array {
     }
 
     return $liquidaciones;
+}
+
+// Fallback: extrae valores con regex sobre texto aplanado (sin saltos de línea).
+// Se usa cuando el PDF separa cada celda en líneas distintas y el parser línea-a-línea no encuentra nada.
+function extractFromChunk(string $flat, array &$v, ?float &$acreditado): void {
+    // IMPORTE NETO DE PAGOS
+    if (preg_match('/IMPORTE\s+NETO\s+DE\s+PAGOS\s+\$\s*([\d.,]+)\s*(-?)/i', $flat, $m)) {
+        $val = parseAmount($m[1]);
+        $acreditado = ($m[2] === '-') ? -$val : $val;
+    }
+
+    // Patrón genérico: busca "CONCEPTO $ MONTO" con signo opcional antes del concepto
+    // Suma todos los matches por concepto respetando el signo + / -
+    $rows = [];
+    if (preg_match_all('/([+-])\s+([\w][^\$\n]{2,60?}?)\s+\$\s*([\d.,]+)/u', $flat, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $m) {
+            $sign  = $m[1];
+            $desc  = trim($m[2]);
+            $amt   = parseAmount($m[3]);
+            $delta = ($sign === '-') ? $amt : -$amt;
+            $rows[] = [$sign, $desc, $amt, $delta];
+        }
+    }
+
+    foreach ($rows as [$sign, $desc, $amt, $delta]) {
+        if      (preg_match('/VENTAS\s+C\/DESCUENTO\s+CONTADO/i', $desc))
+            $v['ventas_contado']     += ($sign === '+') ? $amt : -$amt;
+        elseif  (preg_match('/IVA\s+ARANCEL\s+CUOTAS/i', $desc))
+            $v['iva_arancel_cuotas'] += $delta;
+        elseif  (preg_match('/ARANCEL\s+CUOTAS/i', $desc))
+            $v['arancel_cuotas']     += $delta;
+        elseif  (preg_match('/IVA\s+CRED\.?FISC\.?.*S\/ARANC/i', $desc))
+            $v['iva_arancel']        += $delta;
+        elseif  (preg_match('/^ARANCEL\s*$/i', $desc))
+            $v['arancel']            += $delta;
+        elseif  (preg_match('/IVA\s+PROMO\s+CUOTA\s+AHORA/i', $desc))
+            $v['iva_promo_cuota']    += $delta;
+        elseif  (preg_match('/PROMO\s+CUOTA\s+AHORA/i', $desc))
+            $v['promo_cuota_ahora']  += $delta;
+        elseif  (preg_match('/DESCUENTO\s+FINANC\s+OTORG/i', $desc))
+            $v['dto_financ_cuotas']  += $delta;
+        elseif  (preg_match('/IVA\s+RI\s+CRED.*S\/DTO/i', $desc))
+            $v['iva_ri_dto_financ']  += $delta;
+        elseif  (preg_match('/DTO\s+S\/VENTAS\s+FIN\s+ADQ/i', $desc))
+            $v['dto_ventas_fin_adq'] += $delta;
+        elseif  (preg_match('/IVA\s+S\/DTO\s+FIN\s+ADQ/i', $desc))
+            $v['iva_dto_fin_adq']    += $delta;
+        elseif  (preg_match('/PER\s+B\.?A\.?I/i', $desc))
+            $v['per_bai_brdn']       += $delta;
+        elseif  (preg_match('/RETENCION\s+ING\.?\s*BRUTOS.*SIRTAC/i', $desc))
+            $v['ret_iibb_sirtac']    += $delta;
+        elseif  (preg_match('/PERCEPCION\s+IVA\s+R\.?G\.?\s*2408\s+1[,.]?5/i', $desc))
+            $v['perc_iva_1_5']       += $delta;
+        elseif  (preg_match('/PERCEPCION\s+IVA\s+R\.?G\.?\s*2408\s+3/i', $desc))
+            $v['perc_iva_3']         += $delta;
+        elseif  (preg_match('/CARGO\s+TERMINAL\s+FISERV/i', $desc))
+            $v['cargo_terminal']     += $delta;
+        elseif  (preg_match('/CARGO\s+SISTEMA\s+CUOTAS\s+MENS/i', $desc))
+            $v['cargo_sist_cuotas']  += $delta;
+        elseif  (preg_match('/IVA\s+RI\s+SIST\s+CUOTAS/i', $desc))
+            $v['iva_ri_sist_cuotas'] += $delta;
+        elseif  (preg_match('/QR\s+PERCEPCION\s+IVA/i', $desc))
+            $v['qr_perc_iva']        += $delta;
+        elseif  (preg_match('/QR\s+RETENCION\s+IIBB/i', $desc))
+            $v['qr_ret_iibb']        += $delta;
+    }
 }
