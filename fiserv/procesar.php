@@ -283,7 +283,10 @@ function parseFiservLiquidaciones(text) {
 
     const parts = text.split(/(?=F\.?\s*de\s+Pago\s*:)/i);
 
-    // pendingItems: ítems del bloque anterior sin fecha/nro (formato débito)
+    // REGLA CLAVE: En todos los PDFs Fiserv, los ítems de la liquidación N
+    // aparecen ANTES de la línea "F.de Pago:" que la identifica.
+    // Por lo tanto, los ítems de cada bloque pertenecen a la SIGUIENTE liquidación.
+    // Usamos pendingItems para guardar los ítems del bloque anterior.
     let pendingItems = null;
 
     for (const chunk of parts) {
@@ -302,16 +305,20 @@ function parseFiservLiquidaciones(text) {
         const items    = parseLineItems(chunk);
         const hasItems = items.acreditado !== null || Object.values(items.v).some(x => x !== 0);
 
-        // Bloque sin fecha/nro (ej: encabezado de tabla en débito)
-        // Si tiene ítems, los guardamos para el siguiente bloque
         if (!nro_liq && !fecha_pago) {
+            // Bloque sin liquidación (encabezado de tabla, etc.)
+            // Sus ítems pertenecen a la primera liq real → guardar como pending
             if (hasItems) pendingItems = items;
             continue;
         }
 
-        // Bloque con fecha/nro: usar ítems propios o los guardados (formato débito)
-        const use = hasItems ? items : (pendingItems || items);
-        pendingItems = null;
+        // Bloque con liquidación identificada:
+        // - pendingItems = ítems que le corresponden a ESTA liq (vienen del bloque anterior)
+        // - items del chunk actual = ítems de la SIGUIENTE liq → guardar como pending
+        const use = pendingItems;
+        pendingItems = hasItems ? items : null;
+
+        if (!use) continue; // sin ítems para esta liquidación, ignorar
 
         const { v, acreditado: rawAcred } = use;
         let total_descuentos = 0;
