@@ -39,3 +39,10 @@ Ya lo creaste, pero hay errores, te adjunto un archivo y corregi los errores
 Joya, avanzaste un poco mas
 
 Mira el cartel que me tira "No se encontraron liquidaciones en el PDF. Verificá que sea un resumen Fiserv validos"
+
+
+Claude online me dice esto
+
+Dice "sudo: command not found" — es hosting compartido, no te dan permisos de administrador para instalar programas. Es normal en Hostinger compartido.
+No te preocupes, hay una solución mejor: en vez de usar pdftotext en el servidor, modificamos el sistema para que la extracción la siga haciendo JavaScript en el navegador (como el HTML que ya te di que funcionaba bien) pero guardando los resultados en tu base de datos MySQL de Hostinger.
+Así no necesitás instalar nada.

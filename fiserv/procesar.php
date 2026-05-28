@@ -4,6 +4,12 @@ $titulo = 'Subir PDF Fiserv';
 require_once __DIR__ . '/includes/header.php';
 ?>
 
+<!-- PDF.js: parsea el PDF en el navegador, sin necesitar nada instalado en el servidor -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+</script>
+
 <div class="card" style="max-width:680px;margin:0 auto">
     <div class="card-title">Subir liquidación Fiserv</div>
     <p style="color:var(--sub);font-size:14px;margin-bottom:24px">
@@ -47,13 +53,6 @@ require_once __DIR__ . '/includes/header.php';
         <button class="btn btn-primary" id="btn-subir" disabled style="flex:1">
             <span id="btn-text">⬆ Subir y procesar</span>
         </button>
-        <button class="btn btn-secondary" id="btn-debug" disabled title="Ver texto extraído del PDF (diagnóstico)" style="min-width:90px">
-            🔍 Debug
-        </button>
-    </div>
-    <div id="debug-output" style="display:none;margin-top:16px">
-        <div style="font-size:12px;color:var(--sub);margin-bottom:6px">Texto extraído del PDF (primeros 4000 caracteres):</div>
-        <textarea id="debug-text" readonly style="width:100%;height:220px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:11px;color:var(--text);resize:vertical"></textarea>
     </div>
 </div>
 
@@ -120,9 +119,219 @@ require_once __DIR__ . '/includes/header.php';
 .upload-icon { font-size: 40px; margin-bottom: 12px; }
 .upload-text { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
 .upload-sub  { font-size: 13px; color: var(--sub); }
+.stat-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 13px;
+    color: var(--sub);
+}
+.stat-pill.green { color: var(--green); border-color: rgba(16,185,129,0.3); }
+.stat-pill.blue  { color: var(--accent-light); border-color: rgba(37,99,235,0.3); }
 </style>
 
 <script>
+// ─────────────────────────────────────────────────────────────────────────────
+// EXTRACCIÓN DE TEXTO CON PDF.JS (navegador — no requiere nada en el servidor)
+// ─────────────────────────────────────────────────────────────────────────────
+async function extractPdfText(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const content = await page.getTextContent();
+
+        // Agrupar ítems por línea (misma posición Y, tolerancia 3px)
+        const lineMap = {};
+        for (const item of content.items) {
+            if (!item.str) continue;
+            const y = Math.round(item.transform[5] / 3) * 3;
+            if (!lineMap[y]) lineMap[y] = [];
+            lineMap[y].push({ x: item.transform[4], str: item.str });
+        }
+
+        // Ordenar líneas de arriba a abajo (Y decreciente en coordenadas PDF)
+        const ys = Object.keys(lineMap).map(Number).sort((a, b) => b - a);
+        for (const y of ys) {
+            const sorted = lineMap[y].sort((a, b) => a.x - b.x);
+            fullText += sorted.map(i => i.str).join(' ') + '\n';
+        }
+        fullText += '\n';
+    }
+    return fullText;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PARSER DE LIQUIDACIONES FISERV (idéntico a la lógica PHP, pero en JS)
+// ─────────────────────────────────────────────────────────────────────────────
+function parseAmount(raw) {
+    return parseFloat(String(raw).replace(/\./g, '').replace(',', '.')) || 0;
+}
+
+function parseDate(raw) {
+    const m = String(raw).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+}
+
+function parseFiservHeader(text) {
+    const h = {};
+    const mP = text.match(/(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)\s+(\d{4})/i);
+    if (mP) h.periodo = mP[1].toUpperCase() + ' ' + mP[2];
+
+    const mT = text.match(/\b(MASTERCARD|VISA|AMERICAN\s+EXPRESS|AMEX|CABAL)\b/i);
+    if (mT) h.tarjeta = mT[1].charAt(0).toUpperCase() + mT[1].slice(1).toLowerCase() + ' Crédito';
+    else if (/TARJETA\s+DE\s+CREDITO/i.test(text)) h.tarjeta = 'Tarjeta Crédito';
+
+    const mC = text.match(/N[°º]?\s*Comercio[\s:]+([\d]+)/i) || text.match(/(\d{8,10})\s*\/\s*\d/);
+    if (mC) h.nro_comercio = mC[1];
+
+    const mTP = text.match(/Total\s+presentado[\s:]+([\d.,]+)/i);
+    if (mTP) h.total_presentado = parseAmount(mTP[1]);
+    const mN = text.match(/Neto\s+de\s+pagos[\s:]+([\d.,]+)/i);
+    if (mN) h.neto_pagos = parseAmount(mN[1]);
+
+    return h;
+}
+
+function parseFiservLiquidaciones(text) {
+    const liquidaciones = [];
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    const parts = text.split(/(?=F\.?\s*de\s+Pago\s*:)/i);
+
+    for (const chunk of parts) {
+        if (!/^F\.?\s*de\s+Pago\s*:/i.test(chunk.trimStart())) continue;
+
+        const flat = chunk.replace(/\s+/g, ' ');
+
+        let nro_liq = '';
+        const mNro = flat.match(/Nro\.?\s*Liq[\s:.]*(\d+)/i);
+        if (mNro) nro_liq = mNro[1];
+
+        let fecha_pago = null;
+        const mFp = flat.match(/el\s+d[íi]a\s+(\d{2}\/\d{2}\/\d{4})/i);
+        if (mFp) fecha_pago = parseDate(mFp[1]);
+
+        let fecha_pres = null;
+        const mFpr = flat.match(/F\.?\s*Pres\.?\s+(\d{2}\/\d{2}\/\d{4})/i);
+        if (mFpr) fecha_pres = parseDate(mFpr[1]);
+
+        if (!nro_liq && !fecha_pago) continue;
+
+        const v = {
+            ventas_contado:0, arancel:0, iva_arancel:0, arancel_cuotas:0,
+            iva_arancel_cuotas:0, promo_cuota_ahora:0, dto_financ_cuotas:0,
+            iva_ri_dto_financ:0, dto_ventas_fin_adq:0, per_bai_brdn:0,
+            ret_iibb_sirtac:0, iva_promo_cuota:0, iva_dto_fin_adq:0,
+            perc_iva_1_5:0, perc_iva_3:0, cargo_terminal:0,
+            cargo_sist_cuotas:0, iva_ri_sist_cuotas:0, qr_perc_iva:0, qr_ret_iibb:0
+        };
+        let acreditado = null;
+
+        for (const line of chunk.split('\n')) {
+            const t = line.trim();
+
+            // IMPORTE NETO DE PAGOS — el "-" final indica débito
+            const mNeto = t.match(/IMPORTE\s+NETO\s+DE\s+PAGOS\s+\$\s*([\d.,]+)\s*(-?)/i);
+            if (mNeto) {
+                const val = parseAmount(mNeto[1]);
+                acreditado = mNeto[2] === '-' ? -val : val;
+                continue;
+            }
+
+            // Líneas con signo: "- DESCRIPCION $ MONTO" o "+ DESCRIPCION $ MONTO"
+            const mL = t.match(/^([-+])\s+(.+?)\s+\$\s*([\d.,]+)\s*$/);
+            if (!mL) continue;
+
+            const sign  = mL[1];
+            const desc  = mL[2];
+            const amt   = parseAmount(mL[3]);
+            const delta = sign === '-' ? amt : -amt;
+
+            if      (/VENTAS\s+C\/DESCUENTO\s+CONTADO/i.test(desc))
+                v.ventas_contado     += sign === '+' ? amt : -amt;
+            else if (/IVA\s+ARANCEL\s+CUOTAS/i.test(desc))
+                v.iva_arancel_cuotas += delta;
+            else if (/ARANCEL\s+CUOTAS/i.test(desc))
+                v.arancel_cuotas     += delta;
+            else if (/IVA\s+CRED\.?FISC.*S\/ARANC/i.test(desc))
+                v.iva_arancel        += delta;
+            else if (/^ARANCEL\s*$/i.test(desc))
+                v.arancel            += delta;
+            else if (/IVA\s+PROMO\s+CUOTA\s+AHORA/i.test(desc))
+                v.iva_promo_cuota    += delta;
+            else if (/PROMO\s+CUOTA\s+AHORA/i.test(desc))
+                v.promo_cuota_ahora  += delta;
+            else if (/DESCUENTO\s+FINANC\s+OTORG/i.test(desc))
+                v.dto_financ_cuotas  += delta;
+            else if (/IVA\s+RI\s+CRED.*S\/DTO/i.test(desc))
+                v.iva_ri_dto_financ  += delta;
+            else if (/DTO\s+S\/VENTAS\s+FIN\s+ADQ/i.test(desc))
+                v.dto_ventas_fin_adq += delta;
+            else if (/IVA\s+S\/DTO\s+FIN\s+ADQ/i.test(desc))
+                v.iva_dto_fin_adq    += delta;
+            else if (/PER\s+B\.?A\.?I/i.test(desc))
+                v.per_bai_brdn       += delta;
+            else if (/RETENCION\s+ING\.?\s*BRUTOS.*SIRTAC/i.test(desc))
+                v.ret_iibb_sirtac    += delta;
+            else if (/PERCEPCION\s+IVA\s+R\.?G\.?\s*2408\s+1[,.]?5/i.test(desc))
+                v.perc_iva_1_5       += delta;
+            else if (/PERCEPCION\s+IVA\s+R\.?G\.?\s*2408\s+3/i.test(desc))
+                v.perc_iva_3         += delta;
+            else if (/CARGO\s+TERMINAL\s+FISERV/i.test(desc))
+                v.cargo_terminal     += delta;
+            else if (/CARGO\s+SISTEMA\s+CUOTAS\s+MENS/i.test(desc))
+                v.cargo_sist_cuotas  += delta;
+            else if (/IVA\s+RI\s+SIST\s+CUOTAS/i.test(desc))
+                v.iva_ri_sist_cuotas += delta;
+            else if (/QR\s+PERCEPCION\s+IVA/i.test(desc))
+                v.qr_perc_iva        += delta;
+            else if (/QR\s+RETENCION\s+IIBB/i.test(desc))
+                v.qr_ret_iibb        += delta;
+        }
+
+        let total_descuentos = 0;
+        for (const [k, val] of Object.entries(v)) {
+            if (k !== 'ventas_contado' && val > 0) total_descuentos += val;
+        }
+        if (acreditado === null) acreditado = v.ventas_contado - total_descuentos;
+
+        const r2 = n => Math.round(n * 100) / 100;
+        liquidaciones.push({
+            nro_liq, fecha_pago, fecha_pres,
+            ventas_contado:    r2(v.ventas_contado),
+            arancel:           r2(v.arancel),
+            iva_arancel:       r2(v.iva_arancel),
+            arancel_cuotas:    r2(v.arancel_cuotas),
+            iva_arancel_cuotas:r2(v.iva_arancel_cuotas),
+            promo_cuota_ahora: r2(v.promo_cuota_ahora),
+            dto_financ_cuotas: r2(v.dto_financ_cuotas),
+            iva_ri_dto_financ: r2(v.iva_ri_dto_financ),
+            dto_ventas_fin_adq:r2(v.dto_ventas_fin_adq),
+            per_bai_brdn:      r2(v.per_bai_brdn),
+            ret_iibb_sirtac:   r2(v.ret_iibb_sirtac),
+            iva_promo_cuota:   r2(v.iva_promo_cuota),
+            iva_dto_fin_adq:   r2(v.iva_dto_fin_adq),
+            perc_iva_1_5:      r2(v.perc_iva_1_5),
+            perc_iva_3:        r2(v.perc_iva_3),
+            cargo_terminal:    r2(v.cargo_terminal),
+            cargo_sist_cuotas: r2(v.cargo_sist_cuotas),
+            iva_ri_sist_cuotas:r2(v.iva_ri_sist_cuotas),
+            qr_perc_iva:       r2(v.qr_perc_iva),
+            qr_ret_iibb:       r2(v.qr_ret_iibb),
+            total_descuentos:  r2(total_descuentos),
+            acreditado:        r2(acreditado),
+        });
+    }
+    return liquidaciones;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI
+// ─────────────────────────────────────────────────────────────────────────────
 let parsedData = null;
 
 const zone      = document.getElementById('upload-zone');
@@ -130,8 +339,8 @@ const fileInput = document.getElementById('file-input');
 const fileInfo  = document.getElementById('file-info');
 const btnSubir  = document.getElementById('btn-subir');
 
-zone.addEventListener('click', () => fileInput.click());
-zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('click',    () => fileInput.click());
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); });
 zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
 zone.addEventListener('drop', e => {
     e.preventDefault(); zone.classList.remove('dragover');
@@ -146,77 +355,17 @@ function setFile(f) {
     document.getElementById('file-size').textContent = (f.size / 1024).toFixed(1) + ' KB';
     fileInfo.style.display = 'block';
     btnSubir.disabled = false;
-    document.getElementById('btn-debug').disabled = false;
     fileInput._file = f;
 }
 
 function clearFile() {
     fileInfo.style.display = 'none';
     btnSubir.disabled = true;
-    document.getElementById('btn-debug').disabled = true;
-    document.getElementById('debug-output').style.display = 'none';
     fileInput.value = '';
     fileInput._file = null;
+    parsedData = null;
+    document.getElementById('resultado').style.display = 'none';
 }
-
-document.getElementById('btn-debug').addEventListener('click', async () => {
-    const f = fileInput._file || fileInput.files[0];
-    if (!f) return;
-    const btn = document.getElementById('btn-debug');
-    btn.disabled = true; btn.textContent = '…';
-    const form = new FormData();
-    form.append('pdf', f);
-    form.append('debug', '1');
-    try {
-        const res  = await fetch('/fiserv/api/subir_pdf.php', { method: 'POST', body: form });
-        const data = await res.json();
-        const out  = document.getElementById('debug-output');
-        const ta   = document.getElementById('debug-text');
-        out.style.display = 'block';
-        const prefix = data.extractor ? `[Extractor: ${data.extractor}]\n\n` : '';
-        ta.value = prefix + (data.debug_text || data.error || JSON.stringify(data));
-        out.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch(e) { toast('Error: ' + e.message, 'error'); }
-    finally { btn.disabled = false; btn.textContent = '🔍 Debug'; }
-});
-
-document.getElementById('btn-subir').addEventListener('click', async () => {
-    const f = fileInput._file || fileInput.files[0];
-    if (!f) return;
-
-    btnSubir.disabled = true;
-    document.getElementById('btn-text').textContent = 'Procesando…';
-    setProgress(true, 'Leyendo PDF…', 20);
-
-    const form = new FormData();
-    form.append('pdf', f);
-
-    try {
-        setProgress(true, 'Extrayendo datos…', 60);
-        const res  = await fetch('/fiserv/api/subir_pdf.php', { method: 'POST', body: form });
-        setProgress(true, 'Guardando…', 85);
-        const data = await res.json();
-
-        setProgress(true, 'Listo', 100);
-        setTimeout(() => setProgress(false), 600);
-
-        if (data.error) {
-            toast(data.error, 'error');
-            return;
-        }
-
-        parsedData = data;
-        renderResultado(data);
-        toast(`${data.total} liquidaciones importadas`, 'success');
-
-    } catch (e) {
-        toast('Error de conexión: ' + e.message, 'error');
-    } finally {
-        btnSubir.disabled = false;
-        document.getElementById('btn-text').textContent = '⬆ Subir y procesar';
-        setProgress(false);
-    }
-});
 
 function setProgress(on, label = '', pct = 0) {
     document.getElementById('progress-wrap').style.display = on ? 'block' : 'none';
@@ -227,57 +376,107 @@ function setProgress(on, label = '', pct = 0) {
     }
 }
 
+document.getElementById('btn-subir').addEventListener('click', async () => {
+    const f = fileInput._file || fileInput.files[0];
+    if (!f) return;
+
+    btnSubir.disabled = true;
+    document.getElementById('btn-text').textContent = 'Procesando…';
+    setProgress(true, 'Leyendo PDF en el navegador…', 15);
+
+    try {
+        // 1. Extraer texto con PDF.js (en el navegador)
+        setProgress(true, 'Extrayendo texto…', 35);
+        const text = await extractPdfText(f);
+
+        // 2. Parsear
+        setProgress(true, 'Analizando liquidaciones…', 60);
+        const header       = parseFiservHeader(text);
+        const liquidaciones = parseFiservLiquidaciones(text);
+
+        if (!liquidaciones.length) {
+            toast('No se encontraron liquidaciones en el PDF. Verificá que sea un resumen Fiserv válido.', 'error');
+            return;
+        }
+
+        // 3. Guardar en base de datos
+        setProgress(true, 'Guardando en base de datos…', 80);
+        const res  = await fetch('/fiserv/api/guardar_liquidacion.php', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ header, liquidaciones, archivo_nombre: f.name }),
+        });
+        const data = await res.json();
+
+        setProgress(true, 'Listo', 100);
+        setTimeout(() => setProgress(false), 500);
+
+        if (data.error) { toast(data.error, 'error'); return; }
+
+        parsedData = data;
+        renderResultado(data);
+        toast(`${data.total} liquidaciones importadas`, 'success');
+
+    } catch(e) {
+        toast('Error: ' + e.message, 'error');
+    } finally {
+        btnSubir.disabled = false;
+        document.getElementById('btn-text').textContent = '⬆ Subir y procesar';
+        setProgress(false);
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────────────────────────────
 function fmt(v) {
     const n = parseFloat(v || 0);
     const abs = Math.abs(n);
     const s = abs.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return n < 0 ? '-$ ' + s : '$ ' + s;
 }
-
 function cellColor(c, n) {
     if (n === 0) return 'var(--muted)';
-    if (c === 'ventas_contado') return n > 0 ? 'var(--green)' : 'var(--muted)';
-    if (c === 'acreditado')     return n >= 0 ? 'var(--green)' : 'var(--red)';
+    if (c === 'ventas_contado')   return n > 0 ? 'var(--green)' : 'var(--muted)';
+    if (c === 'acreditado')       return n >= 0 ? 'var(--green)' : 'var(--red)';
     if (c === 'total_descuentos') return n > 0 ? 'var(--amber)' : 'var(--muted)';
-    // columnas de descuento: positivo=rojo (débito), negativo=verde (crédito devuelto)
     return n > 0 ? 'var(--red)' : 'var(--green)';
 }
-
 function fmtDate(d) {
     if (!d) return '—';
     const [y, m, dia] = d.split('-');
     return `${dia}/${m}/${y}`;
 }
 
+const cols = [
+    'ventas_contado','arancel','iva_arancel','arancel_cuotas','iva_arancel_cuotas',
+    'promo_cuota_ahora','dto_financ_cuotas','iva_ri_dto_financ','dto_ventas_fin_adq',
+    'per_bai_brdn','ret_iibb_sirtac','iva_promo_cuota','iva_dto_fin_adq',
+    'perc_iva_1_5','perc_iva_3','cargo_terminal','cargo_sist_cuotas','iva_ri_sist_cuotas',
+    'qr_perc_iva','qr_ret_iibb','total_descuentos','acreditado'
+];
+
 function renderResultado(data) {
     const res = document.getElementById('resultado');
     res.style.display = 'block';
     res.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    document.getElementById('res-titulo').textContent = `${data.total} liquidaciones — ${data.header?.periodo ?? ''} ${data.header?.tarjeta ?? ''}`;
+    document.getElementById('res-titulo').textContent =
+        `${data.total} liquidaciones — ${data.header?.periodo ?? ''} ${data.header?.tarjeta ?? ''}`;
 
-    // Header info
     const h = data.header || {};
     document.getElementById('res-header').innerHTML = [
-        h.tarjeta      && `<div class="stat-pill">💳 ${h.tarjeta}</div>`,
-        h.periodo      && `<div class="stat-pill">📅 ${h.periodo}</div>`,
-        h.nro_comercio && `<div class="stat-pill">🏪 Comercio: ${h.nro_comercio}</div>`,
-        h.total_presentado && `<div class="stat-pill green">Presentado: ${fmt(h.total_presentado)}</div>`,
-        h.neto_pagos   && `<div class="stat-pill blue">Neto pagos: ${fmt(h.neto_pagos)}</div>`,
+        h.tarjeta           && `<div class="stat-pill">💳 ${h.tarjeta}</div>`,
+        h.periodo           && `<div class="stat-pill">📅 ${h.periodo}</div>`,
+        h.nro_comercio      && `<div class="stat-pill">🏪 Comercio: ${h.nro_comercio}</div>`,
+        h.total_presentado  && `<div class="stat-pill green">Presentado: ${fmt(h.total_presentado)}</div>`,
+        h.neto_pagos        && `<div class="stat-pill blue">Neto pagos: ${fmt(h.neto_pagos)}</div>`,
     ].filter(Boolean).join('');
 
-    const cols = [
-        'ventas_contado','arancel','iva_arancel','arancel_cuotas','iva_arancel_cuotas',
-        'promo_cuota_ahora','dto_financ_cuotas','iva_ri_dto_financ','dto_ventas_fin_adq',
-        'per_bai_brdn','ret_iibb_sirtac','iva_promo_cuota','iva_dto_fin_adq',
-        'perc_iva_1_5','perc_iva_3','cargo_terminal','cargo_sist_cuotas','iva_ri_sist_cuotas',
-        'qr_perc_iva','qr_ret_iibb','total_descuentos','acreditado'
-    ];
     const totals = {};
     cols.forEach(c => totals[c] = 0);
 
-    const tbody = document.getElementById('res-tbody');
-    tbody.innerHTML = data.liquidaciones.map(l => {
+    document.getElementById('res-tbody').innerHTML = data.liquidaciones.map(l => {
         cols.forEach(c => totals[c] += parseFloat(l[c] || 0));
         return `<tr>
             <td class="mono" style="font-size:11px">${l.nro_liq || '—'}</td>
@@ -287,14 +486,15 @@ function renderResultado(data) {
         </tr>`;
     }).join('');
 
-    // Fila de totales
     document.getElementById('res-tfoot').innerHTML = `<tr style="background:var(--surface);font-weight:700">
         <td colspan="3" style="font-size:12px;color:var(--sub)">TOTALES</td>
         ${cols.map(c => { const n = totals[c]; return `<td class="mono" style="text-align:right;font-size:12px;color:${cellColor(c,n)}">${n !== 0 ? fmt(n) : '—'}</td>`; }).join('')}
     </tr>`;
 }
 
-// ── Exportar Excel con SheetJS ───────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORTAR EXCEL (SheetJS)
+// ─────────────────────────────────────────────────────────────────────────────
 document.getElementById('btn-exportar').addEventListener('click', () => {
     if (!parsedData) return;
     exportarExcel(parsedData);
@@ -304,88 +504,43 @@ function exportarExcel(data) {
     const h = data.header || {};
     const colHeaders = [
         'Nro. Liq.', 'Fecha Pago', 'Fecha Pres.',
-        'VENTAS C/DESCUENTO CONTADO',
-        'ARANCEL',
-        'IVA CRED FISC COMERCIO S/ARANC 21%',
-        'ARANCEL CUOTAS',
-        'IVA ARANCEL CUOTAS 21%',
-        'PROMO CUOTA AHORA SIMPLE',
-        'DESCUENTO FINANC OTORG. CUOTAS',
-        'IVA RI CRED FISC COMERCIO S/DTO F.OTORG 10,5%',
-        'DTO S/VENTAS FIN ADQ CONT',
-        'PER B.A.I. BRDN 01/04',
-        'RETENCION ING. BRUTOS BSAS SIRTAC',
-        'IVA PROMO CUOTA AHORA SIMPLE 21%',
-        'IVA S/DTO FIN ADQ CONT 21%',
-        'PERCEPCION IVA R.G. 2408 1,50%',
-        'PERCEPCION IVA R.G. 2408 3%',
-        'CARGO TERMINAL FISERV',
-        'CARGO SISTEMA CUOTAS MENS',
-        'IVA RI SIST CUOTAS',
-        'QR PERCEPCION IVA',
-        'QR RETENCION IIBB BS.AS.',
-        'TOTAL',
-        'ACREDITADO',
+        'VENTAS C/DESCUENTO CONTADO','ARANCEL','IVA CRED FISC COMERCIO S/ARANC 21%',
+        'ARANCEL CUOTAS','IVA ARANCEL CUOTAS 21%','PROMO CUOTA AHORA SIMPLE',
+        'DESCUENTO FINANC OTORG. CUOTAS','IVA RI CRED FISC COMERCIO S/DTO F.OTORG 10,5%',
+        'DTO S/VENTAS FIN ADQ CONT','PER B.A.I. BRDN 01/04','RETENCION ING. BRUTOS BSAS SIRTAC',
+        'IVA PROMO CUOTA AHORA SIMPLE 21%','IVA S/DTO FIN ADQ CONT 21%',
+        'PERCEPCION IVA R.G. 2408 1,50%','PERCEPCION IVA R.G. 2408 3%',
+        'CARGO TERMINAL FISERV','CARGO SISTEMA CUOTAS MENS','IVA RI SIST CUOTAS',
+        'QR PERCEPCION IVA','QR RETENCION IIBB BS.AS.','TOTAL','ACREDITADO',
     ];
-
-    const fieldMap = [
-        'nro_liq', 'fecha_pago', 'fecha_pres',
-        'ventas_contado', 'arancel', 'iva_arancel', 'arancel_cuotas', 'iva_arancel_cuotas',
-        'promo_cuota_ahora', 'dto_financ_cuotas', 'iva_ri_dto_financ', 'dto_ventas_fin_adq',
-        'per_bai_brdn', 'ret_iibb_sirtac', 'iva_promo_cuota', 'iva_dto_fin_adq',
-        'perc_iva_1_5', 'perc_iva_3', 'cargo_terminal', 'cargo_sist_cuotas', 'iva_ri_sist_cuotas',
-        'qr_perc_iva', 'qr_ret_iibb', 'total_descuentos', 'acreditado',
-    ];
-
+    const fieldMap = ['nro_liq','fecha_pago','fecha_pres', ...cols];
     const rows = [colHeaders];
     const totals = new Array(fieldMap.length).fill(0);
 
     data.liquidaciones.forEach(l => {
-        const row = fieldMap.map((f, i) => {
-            const v = l[f];
-            if (f === 'nro_liq') return v || '';
-            if (f === 'fecha_pago' || f === 'fecha_pres') return fmtDate(v);
-            const n = parseFloat(v || 0);
+        rows.push(fieldMap.map((f, i) => {
+            if (f === 'nro_liq') return l[f] || '';
+            if (f === 'fecha_pago' || f === 'fecha_pres') return fmtDate(l[f]);
+            const n = parseFloat(l[f] || 0);
             if (i >= 3) totals[i] += n;
             return n;
-        });
-        rows.push(row);
+        }));
     });
-
-    // Fila totales
-    const totRow = fieldMap.map((f, i) => {
+    rows.push(fieldMap.map((f, i) => {
         if (i === 0) return 'TOTALES';
         if (i === 1 || i === 2) return '';
         return totals[i];
-    });
-    rows.push(totRow);
+    }));
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-
-    // Ancho de columnas
     ws['!cols'] = colHeaders.map((c, i) => ({ wch: i < 3 ? 14 : Math.max(c.length, 12) }));
-
     const wb = XLSX.utils.book_new();
-    const sheetName = (h.periodo || 'Fiserv').replace(/\s+/g, '_').substring(0, 31);
+    const sheetName = (h.periodo || 'Fiserv').replace(/\s+/g,'_').substring(0,31);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
-
-    const filename = `Fiserv_${h.periodo || 'liquidacion'}_${h.tarjeta || ''}.xlsx`
-        .replace(/\s+/g, '_').replace(/[^\w._-]/g, '');
-    XLSX.writeFile(wb, filename);
+    const fname = `Fiserv_${h.periodo || 'liquidacion'}_${h.tarjeta || ''}.xlsx`
+        .replace(/\s+/g,'_').replace(/[^\w._-]/g,'');
+    XLSX.writeFile(wb, fname);
 }
 </script>
-
-<style>
-.stat-pill {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 5px 12px;
-    font-size: 13px;
-    color: var(--sub);
-}
-.stat-pill.green { color: var(--green); border-color: rgba(16,185,129,0.3); }
-.stat-pill.blue  { color: var(--accent-light); border-color: rgba(37,99,235,0.3); }
-</style>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
