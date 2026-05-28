@@ -181,9 +181,16 @@ function parseFiservHeader(text) {
     const mP = text.match(/(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)\s+(\d{4})/i);
     if (mP) h.periodo = mP[1].toUpperCase() + ' ' + mP[2];
 
+    const isDebito = /TARJETA\s+DE\s+D[EÉ]BITO/i.test(text);
     const mT = text.match(/\b(MASTERCARD|VISA|AMERICAN\s+EXPRESS|AMEX|CABAL)\b/i);
-    if (mT) h.tarjeta = mT[1].charAt(0).toUpperCase() + mT[1].slice(1).toLowerCase() + ' Crédito';
-    else if (/TARJETA\s+DE\s+CREDITO/i.test(text)) h.tarjeta = 'Tarjeta Crédito';
+    if (mT) {
+        const brand = mT[1].charAt(0).toUpperCase() + mT[1].slice(1).toLowerCase();
+        h.tarjeta = brand + (isDebito ? ' Débito' : ' Crédito');
+    } else if (isDebito) {
+        h.tarjeta = 'Tarjeta Débito';
+    } else if (/TARJETA\s+DE\s+CR[EÉ]DITO/i.test(text)) {
+        h.tarjeta = 'Tarjeta Crédito';
+    }
 
     const mC = text.match(/N[°º]?\s*Comercio[\s:]+([\d]+)/i) || text.match(/(\d{8,10})\s*\/\s*\d/);
     if (mC) h.nro_comercio = mC[1];
