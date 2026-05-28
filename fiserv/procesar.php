@@ -173,7 +173,8 @@ document.getElementById('btn-debug').addEventListener('click', async () => {
         const out  = document.getElementById('debug-output');
         const ta   = document.getElementById('debug-text');
         out.style.display = 'block';
-        ta.value = data.debug_text || data.error || JSON.stringify(data);
+        const prefix = data.extractor ? `[Extractor: ${data.extractor}]\n\n` : '';
+        ta.value = prefix + (data.debug_text || data.error || JSON.stringify(data));
         out.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch(e) { toast('Error: ' + e.message, 'error'); }
     finally { btn.disabled = false; btn.textContent = '🔍 Debug'; }

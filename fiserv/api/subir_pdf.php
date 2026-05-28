@@ -8,12 +8,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['error' => 'Método no permitido']); exit;
 }
 
-// ── Autoload Composer ────────────────────────────────────────────────────────
+// ── Autoload Composer (solo necesario para fallback smalot/pdfparser) ────────
 $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
-if (!file_exists($autoload)) {
-    echo json_encode(['error' => 'Librería de PDF no instalada. Ejecutá: composer require smalot/pdfparser']); exit;
-}
-require_once $autoload;
+if (file_exists($autoload)) require_once $autoload;
 
 // ── Validar archivo ──────────────────────────────────────────────────────────
 if (empty($_FILES['pdf']) || $_FILES['pdf']['error'] !== UPLOAD_ERR_OK) {
@@ -29,13 +26,39 @@ if ($file['size'] > 20 * 1024 * 1024) {
     echo json_encode(['error' => 'El archivo supera los 20 MB']); exit;
 }
 
-// ── Parsear PDF ──────────────────────────────────────────────────────────────
-try {
-    $parser = new \Smalot\PdfParser\Parser();
-    $pdf    = $parser->parseFile($file['tmp_name']);
-    $text   = $pdf->getText();
-} catch (Exception $e) {
-    echo json_encode(['error' => 'Error al leer el PDF: ' . $e->getMessage()]); exit;
+// ── Extraer texto del PDF ────────────────────────────────────────────────────
+// Intenta pdftotext (poppler) primero: extrae columnas y números correctamente.
+// Si no está disponible, cae en smalot/pdfparser como respaldo.
+$text      = '';
+$extractor = 'smalot';
+
+$pdftotext = '';
+foreach (['/usr/bin/pdftotext', '/usr/local/bin/pdftotext', 'pdftotext'] as $bin) {
+    if (@is_executable($bin) || (function_exists('shell_exec') && trim((string)@shell_exec('which ' . $bin . ' 2>/dev/null')) !== '')) {
+        $pdftotext = $bin; break;
+    }
+}
+
+if ($pdftotext !== '') {
+    $tmp = $file['tmp_name'];
+    $out = @shell_exec($pdftotext . ' -layout -enc UTF-8 ' . escapeshellarg($tmp) . ' - 2>/dev/null');
+    if ($out && strlen(trim($out)) > 80) {
+        $text      = $out;
+        $extractor = 'pdftotext';
+    }
+}
+
+if (empty($text)) {
+    if (!file_exists(dirname(__DIR__, 2) . '/vendor/autoload.php')) {
+        echo json_encode(['error' => 'pdftotext no disponible y librería smalot/pdfparser no instalada. Instalá poppler-utils en el servidor o ejecutá: composer require smalot/pdfparser']); exit;
+    }
+    try {
+        $parser = new \Smalot\PdfParser\Parser();
+        $pdf    = $parser->parseFile($file['tmp_name']);
+        $text   = $pdf->getText();
+    } catch (Exception $e) {
+        echo json_encode(['error' => 'Error al leer el PDF: ' . $e->getMessage()]); exit;
+    }
 }
 
 if (empty(trim($text))) {
@@ -44,7 +67,7 @@ if (empty(trim($text))) {
 
 // ── Modo debug: devuelve el texto crudo para diagnóstico ─────────────────────
 if (!empty($_POST['debug'])) {
-    echo json_encode(['debug_text' => substr($text, 0, 4000)]); exit;
+    echo json_encode(['extractor' => $extractor, 'debug_text' => substr($text, 0, 4000)]); exit;
 }
 
 // ── Extraer header del PDF ───────────────────────────────────────────────────
