@@ -197,7 +197,19 @@ function setProgress(on, label = '', pct = 0) {
 }
 
 function fmt(v) {
-    return '$ ' + parseFloat(v || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const n = parseFloat(v || 0);
+    const abs = Math.abs(n);
+    const s = abs.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return n < 0 ? '-$ ' + s : '$ ' + s;
+}
+
+function cellColor(c, n) {
+    if (n === 0) return 'var(--muted)';
+    if (c === 'ventas_contado') return n > 0 ? 'var(--green)' : 'var(--muted)';
+    if (c === 'acreditado')     return n >= 0 ? 'var(--green)' : 'var(--red)';
+    if (c === 'total_descuentos') return n > 0 ? 'var(--amber)' : 'var(--muted)';
+    // columnas de descuento: positivo=rojo (débito), negativo=verde (crédito devuelto)
+    return n > 0 ? 'var(--red)' : 'var(--green)';
 }
 
 function fmtDate(d) {
@@ -236,19 +248,18 @@ function renderResultado(data) {
     const tbody = document.getElementById('res-tbody');
     tbody.innerHTML = data.liquidaciones.map(l => {
         cols.forEach(c => totals[c] += parseFloat(l[c] || 0));
-        const isPositive = c => c === 'ventas_contado' || c === 'acreditado';
         return `<tr>
             <td class="mono" style="font-size:11px">${l.nro_liq || '—'}</td>
             <td class="mono">${fmtDate(l.fecha_pago)}</td>
             <td class="mono">${fmtDate(l.fecha_pres)}</td>
-            ${cols.map(c => `<td class="mono" style="text-align:right;color:${parseFloat(l[c]||0) > 0 ? (isPositive(c)?'var(--green)':'var(--red)') : 'var(--muted)'}">${parseFloat(l[c]||0) > 0 ? fmt(l[c]) : '—'}</td>`).join('')}
+            ${cols.map(c => { const n = parseFloat(l[c]||0); return `<td class="mono" style="text-align:right;color:${cellColor(c,n)}">${n !== 0 ? fmt(n) : '—'}</td>`; }).join('')}
         </tr>`;
     }).join('');
 
     // Fila de totales
     document.getElementById('res-tfoot').innerHTML = `<tr style="background:var(--surface);font-weight:700">
         <td colspan="3" style="font-size:12px;color:var(--sub)">TOTALES</td>
-        ${cols.map(c => `<td class="mono" style="text-align:right;font-size:12px;color:${c==='ventas_contado'||c==='acreditado'?'var(--green)':c==='total_descuentos'?'var(--amber)':'var(--red)'}">${totals[c]>0?fmt(totals[c]):'—'}</td>`).join('')}
+        ${cols.map(c => { const n = totals[c]; return `<td class="mono" style="text-align:right;font-size:12px;color:${cellColor(c,n)}">${n !== 0 ? fmt(n) : '—'}</td>`; }).join('')}
     </tr>`;
 }
 

@@ -120,8 +120,16 @@ let currentRows = [];
 
 function fmt(v) {
     const n = parseFloat(v || 0);
-    if (n === 0) return '—';
-    return '$ ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const abs = Math.abs(n);
+    const s = abs.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return n < 0 ? '-$ ' + s : '$ ' + s;
+}
+function cellColor(c, n) {
+    if (n === 0) return 'var(--muted)';
+    if (c === 'ventas_contado') return n > 0 ? 'var(--green)' : 'var(--muted)';
+    if (c === 'acreditado')     return n >= 0 ? 'var(--green)' : 'var(--red)';
+    if (c === 'total_descuentos') return n > 0 ? 'var(--amber)' : 'var(--muted)';
+    return n > 0 ? 'var(--red)' : 'var(--green)';
 }
 function fmtDate(d) {
     if (!d) return '—';
@@ -189,21 +197,13 @@ async function verDetalle(lote_id) {
             <td class="mono" style="font-size:11px">${r.nro_liq||'—'}</td>
             <td class="mono">${fmtDate(r.fecha_pago)}</td>
             <td class="mono">${fmtDate(r.fecha_pres)}</td>
-            ${colFields.map(c => {
-                const v = parseFloat(r[c] || 0);
-                const color = v > 0 ? (c==='ventas_contado'||c==='acreditado' ? 'var(--green)' : 'var(--red)') : 'var(--muted)';
-                return `<td class="mono" style="text-align:right;color:${color}">${v > 0 ? fmt(v) : '—'}</td>`;
-            }).join('')}
+            ${colFields.map(c => { const n = parseFloat(r[c]||0); return `<td class="mono" style="text-align:right;color:${cellColor(c,n)}">${n !== 0 ? fmt(n) : '—'}</td>`; }).join('')}
         </tr>`;
     }).join('');
 
     document.getElementById('detalle-tfoot').innerHTML = `<tr style="background:var(--surface);font-weight:700">
         <td colspan="3" style="font-size:12px;color:var(--sub)">TOTALES</td>
-        ${colFields.map(c => {
-            const v = totals[c];
-            const color = c==='ventas_contado'||c==='acreditado' ? 'var(--green)' : c==='total_descuentos' ? 'var(--amber)' : 'var(--red)';
-            return `<td class="mono" style="text-align:right;font-size:12px;color:${color}">${v>0?fmt(v):'—'}</td>`;
-        }).join('')}
+        ${colFields.map(c => { const n = totals[c]; return `<td class="mono" style="text-align:right;font-size:12px;color:${cellColor(c,n)}">${n !== 0 ? fmt(n) : '—'}</td>`; }).join('')}
     </tr>`;
 }
 

@@ -33,3 +33,7 @@ O sea, por cada pdf pongo, me tiene que tirar un excel diferente, pero a la vez 
 Si llega haber 2 de estos en un mismo movimiento "VENTAS C/DESCUENTO CONTADO" sumalos 
 En algunos no va aparecer esto "VENTAS C/DESCUENTO CONTADO" déjalo en cero, pero seguramente si tenga el descuento de "QR PERCEPCION IVA 3337" y el descuento "QR RETENCION IIBB BS. AS."
 Tomate tu tiempo para crearlo al sistema, pregúntame si necesitas algo mas
+
+Ya lo creaste, pero hay errores, te adjunto un archivo y corregi los errores
+
+Joya, avanzaste un poco mas

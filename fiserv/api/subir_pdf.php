@@ -133,50 +133,34 @@ try {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function parseAmount(string $raw): float {
-    // Formato argentino: 1.274,69 → 1274.69
-    $clean = str_replace('.', '', trim($raw)); // quita separador de miles
-    $clean = str_replace(',', '.', $clean);    // decimal
+    $clean = str_replace('.', '', trim($raw));
+    $clean = str_replace(',', '.', $clean);
     return (float)$clean;
 }
 
 function parseDate(string $raw): ?string {
-    // DD/MM/YYYY → YYYY-MM-DD
     if (preg_match('/(\d{2})\/(\d{2})\/(\d{4})/', $raw, $m)) {
         return $m[3] . '-' . $m[2] . '-' . $m[1];
     }
     return null;
 }
 
-function extractAmount(string $text, string $pattern): float {
-    if (preg_match($pattern, $text, $m)) {
-        return parseAmount($m[1]);
-    }
-    return 0.0;
-}
-
-function extractAmountSum(string $text, string $pattern): float {
-    // Suma todas las ocurrencias (por si aparece 2 veces en un bloque)
-    $total = 0.0;
-    if (preg_match_all($pattern, $text, $matches)) {
-        foreach ($matches[1] as $val) {
-            $total += parseAmount($val);
-        }
-    }
-    return $total;
-}
-
 function parseFiservHeader(string $text): array {
     $header = [];
 
-    // Tarjeta + período (ej: "TARJETA DE CREDITO PESOS    MARZO 2026")
-    if (preg_match('/TARJETA\s+DE\s+CREDITO\s+(\w+)\s+([\w\s]+?\d{4})/i', $text, $m)) {
-        $header['tarjeta'] = 'Visa Crédito ' . trim($m[1]);
-        $header['periodo'] = trim($m[2]);
-    } elseif (preg_match('/(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)\s+(\d{4})/i', $text, $m)) {
-        $header['periodo'] = $m[1] . ' ' . $m[2];
+    // Período
+    if (preg_match('/(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)\s+(\d{4})/i', $text, $m)) {
+        $header['periodo'] = strtoupper($m[1]) . ' ' . $m[2];
     }
 
-    // Nro Comercio (ej: "003138142 / 1" o "N° Comercio: 003138142")
+    // Marca de tarjeta — buscar en el texto; si no aparece usar genérico
+    if (preg_match('/\b(MASTERCARD|VISA|AMERICAN\s+EXPRESS|AMEX|CABAL)\b/i', $text, $m)) {
+        $header['tarjeta'] = ucwords(strtolower(trim($m[1]))) . ' Crédito';
+    } elseif (preg_match('/TARJETA\s+DE\s+CREDITO/i', $text)) {
+        $header['tarjeta'] = 'Tarjeta Crédito';
+    }
+
+    // Nro Comercio
     if (preg_match('/N[°º]?\s*Comercio[:\s]+([\d]+)/i', $text, $m)) {
         $header['nro_comercio'] = $m[1];
     } elseif (preg_match('/(\d{8,10})\s*\/\s*\d/', $text, $m)) {
@@ -197,112 +181,135 @@ function parseFiservHeader(string $text): array {
 function parseFiservLiquidaciones(string $text): array {
     $liquidaciones = [];
 
-    // Normalizar saltos de línea
-    $text = str_replace(["\r\n", "\r"], "\n", $text);
-
-    // Dividir el texto por cada línea "F.de Pago:" que cierra un bloque
-    // Cada bloque termina con esa línea
+    $text  = str_replace(["\r\n", "\r"], "\n", $text);
     $parts = preg_split('/(?=F\.?\s*de\s+Pago\s*:)/i', $text);
 
     foreach ($parts as $chunk) {
-        // Solo procesar chunks que tengan una línea F.de Pago al inicio
-        if (!preg_match('/^F\.?\s*de\s+Pago\s*:/i', ltrim($chunk))) {
-            continue;
-        }
+        if (!preg_match('/^F\.?\s*de\s+Pago\s*:/i', ltrim($chunk))) continue;
 
-        // Extraer metadata de la línea F.de Pago
-        $fdePago = '';
         $lines   = explode("\n", $chunk);
+        $fdePago = '';
         foreach ($lines as $line) {
-            if (preg_match('/^F\.?\s*de\s+Pago\s*:/i', ltrim($line))) {
-                $fdePago = $line;
-                break;
-            }
+            if (preg_match('/^F\.?\s*de\s+Pago\s*:/i', ltrim($line))) { $fdePago = $line; break; }
         }
 
-        // Nro. Liquidación
-        $nro_liq = '';
-        if (preg_match('/Nro\.?\s*Liq[:\s.]*(\d+)/i', $fdePago, $m)) {
-            $nro_liq = $m[1];
-        }
-
-        // Fecha de pago
+        $nro_liq    = '';
         $fecha_pago = null;
-        if (preg_match('/el\s+d[íi]a\s+(\d{2}\/\d{2}\/\d{4})/i', $fdePago, $m)) {
-            $fecha_pago = parseDate($m[1]);
-        }
-
-        // Fecha de presentación
         $fecha_pres = null;
-        if (preg_match('/F\.?\s*Pres(?:\.|\s)\s*(\d{2}\/\d{2}\/\d{4})/i', $fdePago, $m)) {
-            $fecha_pres = parseDate($m[1]);
+
+        if (preg_match('/Nro\.?\s*Liq[:\s.]*(\d+)/i', $fdePago, $m))               $nro_liq    = $m[1];
+        if (preg_match('/el\s+d[íi]a\s+(\d{2}\/\d{2}\/\d{4})/i', $fdePago, $m))   $fecha_pago = parseDate($m[1]);
+        if (preg_match('/F\.?\s*Pres(?:\.|\s)\s*(\d{2}\/\d{2}\/\d{4})/i', $fdePago, $m)) $fecha_pres = parseDate($m[1]);
+
+        if (empty($nro_liq) && $fecha_pago === null) continue;
+
+        // ── Parseo línea por línea con detección de signo ─────────────────
+        $v = array_fill_keys([
+            'ventas_contado', 'arancel', 'iva_arancel', 'arancel_cuotas', 'iva_arancel_cuotas',
+            'promo_cuota_ahora', 'dto_financ_cuotas', 'iva_ri_dto_financ', 'dto_ventas_fin_adq',
+            'per_bai_brdn', 'ret_iibb_sirtac', 'iva_promo_cuota', 'iva_dto_fin_adq',
+            'perc_iva_1_5', 'perc_iva_3', 'cargo_terminal', 'cargo_sist_cuotas',
+            'iva_ri_sist_cuotas', 'qr_perc_iva', 'qr_ret_iibb',
+        ], 0.0);
+
+        $acreditado = null;
+
+        foreach ($lines as $line) {
+            $t = trim($line);
+
+            // IMPORTE NETO DE PAGOS — el "-" final indica débito (negativo para el comercio)
+            if (preg_match('/IMPORTE\s+NETO\s+DE\s+PAGOS\s+\$\s*([\d.,]+)\s*(-?)/i', $t, $m)) {
+                $val        = parseAmount($m[1]);
+                $acreditado = ($m[2] === '-') ? -$val : $val;
+                continue;
+            }
+
+            // Líneas con signo: "- DESCRIPCION $ IMPORTE" o "+ DESCRIPCION $ IMPORTE"
+            // '-' = débito (descuento al comercio)  '+' = crédito (devolución al comercio)
+            if (!preg_match('/^([-+])\s+(.+?)\s+\$\s*([\d.,]+)\s*$/', $t, $m)) continue;
+
+            $sign  = $m[1];
+            $desc  = $m[2];
+            $amt   = parseAmount($m[3]);
+            $delta = ($sign === '-') ? $amt : -$amt; // positivo = descuento, negativo = crédito
+
+            if      (preg_match('/VENTAS\s+C\/DESCUENTO\s+CONTADO/i', $desc))
+                $v['ventas_contado']     += ($sign === '+') ? $amt : -$amt;
+            elseif  (preg_match('/IVA\s+ARANCEL\s+CUOTAS/i', $desc))
+                $v['iva_arancel_cuotas'] += $delta;
+            elseif  (preg_match('/ARANCEL\s+CUOTAS/i', $desc))
+                $v['arancel_cuotas']     += $delta;
+            elseif  (preg_match('/IVA\s+CRED\.?FISC\.?.*S\/ARANC/i', $desc))
+                $v['iva_arancel']        += $delta;
+            elseif  (preg_match('/^ARANCEL\s*$/i', $desc))
+                $v['arancel']            += $delta;
+            elseif  (preg_match('/IVA\s+PROMO\s+CUOTA\s+AHORA/i', $desc))
+                $v['iva_promo_cuota']    += $delta;
+            elseif  (preg_match('/PROMO\s+CUOTA\s+AHORA/i', $desc))
+                $v['promo_cuota_ahora']  += $delta;
+            elseif  (preg_match('/DESCUENTO\s+FINANC\s+OTORG/i', $desc))
+                $v['dto_financ_cuotas']  += $delta;
+            elseif  (preg_match('/IVA\s+RI\s+CRED.*S\/DTO/i', $desc))
+                $v['iva_ri_dto_financ']  += $delta;
+            elseif  (preg_match('/DTO\s+S\/VENTAS\s+FIN\s+ADQ/i', $desc))
+                $v['dto_ventas_fin_adq'] += $delta;
+            elseif  (preg_match('/IVA\s+S\/DTO\s+FIN\s+ADQ/i', $desc))
+                $v['iva_dto_fin_adq']    += $delta;
+            elseif  (preg_match('/PER\s+B\.?A\.?I/i', $desc))
+                $v['per_bai_brdn']       += $delta;
+            elseif  (preg_match('/RETENCION\s+ING\.?\s*BRUTOS.*SIRTAC/i', $desc))
+                $v['ret_iibb_sirtac']    += $delta;
+            elseif  (preg_match('/PERCEPCION\s+IVA\s+R\.?G\.?\s*2408\s+1[,.]?5/i', $desc))
+                $v['perc_iva_1_5']       += $delta;
+            elseif  (preg_match('/PERCEPCION\s+IVA\s+R\.?G\.?\s*2408\s+3/i', $desc))
+                $v['perc_iva_3']         += $delta;
+            elseif  (preg_match('/CARGO\s+TERMINAL\s+FISERV/i', $desc))
+                $v['cargo_terminal']     += $delta;
+            elseif  (preg_match('/CARGO\s+SISTEMA\s+CUOTAS\s+MENS/i', $desc))
+                $v['cargo_sist_cuotas']  += $delta;
+            elseif  (preg_match('/IVA\s+RI\s+SIST\s+CUOTAS/i', $desc))
+                $v['iva_ri_sist_cuotas'] += $delta;
+            elseif  (preg_match('/QR\s+PERCEPCION\s+IVA/i', $desc))
+                $v['qr_perc_iva']        += $delta;
+            elseif  (preg_match('/QR\s+RETENCION\s+IIBB/i', $desc))
+                $v['qr_ret_iibb']        += $delta;
         }
 
-        // Si no hay nro_liq ni fecha_pago probablemente es ruido, skip
-        if (empty($nro_liq) && $fecha_pago === null) {
-            continue;
+        // TOTAL = suma de columnas con valor positivo neto (descuentos reales)
+        $total_descuentos = 0.0;
+        foreach ($v as $k => $val) {
+            if ($k !== 'ventas_contado' && $val > 0) $total_descuentos += $val;
         }
 
-        // ── Extraer importes del bloque ────────────────────────────────────
-        // Para buscar ARANCEL puro (sin CUOTAS ni IVA) usamos lookahead negativo
-        $ventas_contado    = extractAmountSum($chunk, '/VENTAS\s+C\/DESCUENTO\s+CONTADO\s+\$\s*([\d.,]+)/i');
-        $arancel           = extractAmountSum($chunk, '/[-+]?\s*ARANCEL(?!\s+CUOTAS)(?!\s+IVA)\s+\$\s*([\d.,]+)/i');
-        $iva_arancel       = extractAmount($chunk, '/IVA\s+CRED\.?FISC\.?COMERCIO\s+S\/ARANC\s+[\d,]+%?\s+\$\s*([\d.,]+)/i');
-        $arancel_cuotas    = extractAmount($chunk, '/ARANCEL\s+CUOTAS\s+\$\s*([\d.,]+)/i');
-        $iva_arancel_cuotas= extractAmount($chunk, '/IVA\s+ARANCEL\s+CUOTAS\s+[\d,]+%?\s+\$\s*([\d.,]+)/i');
-        $promo_cuota_ahora = extractAmount($chunk, '/PROMO\s+CUOTA\s+AHORA\s+SIMPLE\s+\$\s*([\d.,]+)/i');
-        $dto_financ_cuotas = extractAmount($chunk, '/DESCUENTO\s+FINANC\s+OTORG\.?\s*CUOTAS\s+\$\s*([\d.,]+)/i');
-        $iva_ri_dto_financ = extractAmount($chunk, '/IVA\s+RI\s+CRED\.?FISC\.?COMERCIO\s+S\/DTO\s+F\.OTORG\s+[\d,]+%?\s+\$\s*([\d.,]+)/i');
-        $dto_ventas_fin_adq= extractAmount($chunk, '/DTO\s+S\/VENTAS\s+FIN\s+ADQ\s+CONT\s+\$\s*([\d.,]+)/i');
-        $per_bai_brdn      = extractAmount($chunk, '/PER\s+B\.A\.I\.?\s*BR\.?D?N?\.?\s*\d+\/\d+\s+\$\s*([\d.,]+)/i');
-        $ret_iibb_sirtac   = extractAmount($chunk, '/RETENCION\s+ING\.?\s*BRUTOS\s+(?:BSAS\s+)?SIRTAC\s+\$\s*([\d.,]+)/i');
-        $iva_promo_cuota   = extractAmount($chunk, '/IVA\s+PROMO\s+CUOTA\s+AHORA\s+SIMPLE\s+[\d,]+%?\s+\$\s*([\d.,]+)/i');
-        $iva_dto_fin_adq   = extractAmount($chunk, '/IVA\s+S\/DTO\s+FIN\s+ADQ\s+CONT\s+[\d,]+%?\s+\$\s*([\d.,]+)/i');
-        $perc_iva_1_5      = extractAmount($chunk, '/PERCEPCION\s+IVA\s+R\.?G\.?\s*2408\s+1[,.]?5[0]?%\s+\$\s*([\d.,]+)/i');
-        $perc_iva_3        = extractAmount($chunk, '/PERCEPCION\s+IVA\s+R\.?G\.?\s*2408\s+3%\s+\$\s*([\d.,]+)/i');
-        $cargo_terminal    = extractAmount($chunk, '/CARGO\s+TERMINAL\s+FISERV\s+\$\s*([\d.,]+)/i');
-        $cargo_sist_cuotas = extractAmount($chunk, '/CARGO\s+SISTEMA\s+CUOTAS\s+MENS\s+\$\s*([\d.,]+)/i');
-        $iva_ri_sist_cuotas= extractAmount($chunk, '/IVA\s+RI\s+SIST\s+CUOTAS\s+\$\s*([\d.,]+)/i');
-        $qr_perc_iva       = extractAmount($chunk, '/QR\s+PERCEPCION\s+IVA\s+\$\s*([\d.,]+)/i');
-        $qr_ret_iibb       = extractAmount($chunk, '/QR\s+RETENCION\s+IIBB\s+(?:BS\.?AS\.?\s+)?\$\s*([\d.,]+)/i');
-
-        // TOTAL = suma de todos los descuentos
-        $total_descuentos = $arancel + $iva_arancel + $arancel_cuotas + $iva_arancel_cuotas
-            + $promo_cuota_ahora + $dto_financ_cuotas + $iva_ri_dto_financ + $dto_ventas_fin_adq
-            + $per_bai_brdn + $ret_iibb_sirtac + $iva_promo_cuota + $iva_dto_fin_adq
-            + $perc_iva_1_5 + $perc_iva_3 + $cargo_terminal + $cargo_sist_cuotas
-            + $iva_ri_sist_cuotas + $qr_perc_iva + $qr_ret_iibb;
-
-        // ACREDITADO: preferir IMPORTE NETO DE PAGOS del bloque (más preciso)
-        $acreditado = extractAmount($chunk, '/IMPORTE\s+NETO\s+DE\s+PAGOS\s+\$\s*([\d.,]+)/i');
-        if ($acreditado == 0) {
-            $acreditado = $ventas_contado - $total_descuentos;
+        // ACREDITADO: usar IMPORTE NETO del PDF si está disponible; sino calcular
+        if ($acreditado === null) {
+            $acreditado = $v['ventas_contado'] - $total_descuentos;
         }
 
         $liquidaciones[] = [
             'nro_liq'           => $nro_liq,
             'fecha_pago'        => $fecha_pago,
             'fecha_pres'        => $fecha_pres,
-            'ventas_contado'    => round($ventas_contado, 2),
-            'arancel'           => round($arancel, 2),
-            'iva_arancel'       => round($iva_arancel, 2),
-            'arancel_cuotas'    => round($arancel_cuotas, 2),
-            'iva_arancel_cuotas'=> round($iva_arancel_cuotas, 2),
-            'promo_cuota_ahora' => round($promo_cuota_ahora, 2),
-            'dto_financ_cuotas' => round($dto_financ_cuotas, 2),
-            'iva_ri_dto_financ' => round($iva_ri_dto_financ, 2),
-            'dto_ventas_fin_adq'=> round($dto_ventas_fin_adq, 2),
-            'per_bai_brdn'      => round($per_bai_brdn, 2),
-            'ret_iibb_sirtac'   => round($ret_iibb_sirtac, 2),
-            'iva_promo_cuota'   => round($iva_promo_cuota, 2),
-            'iva_dto_fin_adq'   => round($iva_dto_fin_adq, 2),
-            'perc_iva_1_5'      => round($perc_iva_1_5, 2),
-            'perc_iva_3'        => round($perc_iva_3, 2),
-            'cargo_terminal'    => round($cargo_terminal, 2),
-            'cargo_sist_cuotas' => round($cargo_sist_cuotas, 2),
-            'iva_ri_sist_cuotas'=> round($iva_ri_sist_cuotas, 2),
-            'qr_perc_iva'       => round($qr_perc_iva, 2),
-            'qr_ret_iibb'       => round($qr_ret_iibb, 2),
+            'ventas_contado'    => round($v['ventas_contado'], 2),
+            'arancel'           => round($v['arancel'], 2),
+            'iva_arancel'       => round($v['iva_arancel'], 2),
+            'arancel_cuotas'    => round($v['arancel_cuotas'], 2),
+            'iva_arancel_cuotas'=> round($v['iva_arancel_cuotas'], 2),
+            'promo_cuota_ahora' => round($v['promo_cuota_ahora'], 2),
+            'dto_financ_cuotas' => round($v['dto_financ_cuotas'], 2),
+            'iva_ri_dto_financ' => round($v['iva_ri_dto_financ'], 2),
+            'dto_ventas_fin_adq'=> round($v['dto_ventas_fin_adq'], 2),
+            'per_bai_brdn'      => round($v['per_bai_brdn'], 2),
+            'ret_iibb_sirtac'   => round($v['ret_iibb_sirtac'], 2),
+            'iva_promo_cuota'   => round($v['iva_promo_cuota'], 2),
+            'iva_dto_fin_adq'   => round($v['iva_dto_fin_adq'], 2),
+            'perc_iva_1_5'      => round($v['perc_iva_1_5'], 2),
+            'perc_iva_3'        => round($v['perc_iva_3'], 2),
+            'cargo_terminal'    => round($v['cargo_terminal'], 2),
+            'cargo_sist_cuotas' => round($v['cargo_sist_cuotas'], 2),
+            'iva_ri_sist_cuotas'=> round($v['iva_ri_sist_cuotas'], 2),
+            'qr_perc_iva'       => round($v['qr_perc_iva'], 2),
+            'qr_ret_iibb'       => round($v['qr_ret_iibb'], 2),
             'total_descuentos'  => round($total_descuentos, 2),
             'acreditado'        => round($acreditado, 2),
         ];
