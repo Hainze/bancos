@@ -87,6 +87,18 @@ $tools = [
         'subtitulo'   => 'Gestión de Cobros',
         'stats'       => false,
     ],
+    [
+        'id'          => 'informe',
+        'nombre'      => 'Informe General',
+        'descripcion' => 'Resumen consolidado de todos los módulos: Bancos, Fiserv y Cobranza. Gráficos por período y exportación a Excel.',
+        'icono'       => '📈',
+        'color'       => 'purple',
+        'url'         => '/informe/index.php',
+        'badge'       => 'Activo',
+        'badge_type'  => 'green',
+        'subtitulo'   => 'Vista Consolidada',
+        'stats'       => false,
+    ],
 ];
 ?>
 <!DOCTYPE html>
