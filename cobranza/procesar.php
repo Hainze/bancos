@@ -314,13 +314,12 @@ document.getElementById('btn-procesar').addEventListener('click', async () => {
             const sistemaRaw = colMap.sistema >= 0 ? row[colMap.sistema] : row[0];
             const sistema  = parseSistema(sistemaRaw);
             const codigo   = colMap.codigo   >= 0 ? String(row[colMap.codigo] ?? '').trim() : '';
-            // Montos: el Excel guarda en centavos enteros → dividir por 100
-            const d30      = colMap.d30      >= 0 ? parseNum(row[colMap.d30])      / 100 : 0;
-            const d60      = colMap.d60      >= 0 ? parseNum(row[colMap.d60])      / 100 : 0;
-            const d90      = colMap.d90      >= 0 ? parseNum(row[colMap.d90])      / 100 : 0;
-            const d120     = colMap.d120     >= 0 ? parseNum(row[colMap.d120])     / 100 : 0;
-            const d120plus = colMap.d120plus >= 0 ? parseNum(row[colMap.d120plus]) / 100 : 0;
-            const total    = colMap.total    >= 0 ? parseNum(row[colMap.total])    / 100 : (d30 + d60 + d90 + d120 + d120plus);
+            const d30      = colMap.d30      >= 0 ? parseNum(row[colMap.d30])      : 0;
+            const d60      = colMap.d60      >= 0 ? parseNum(row[colMap.d60])      : 0;
+            const d90      = colMap.d90      >= 0 ? parseNum(row[colMap.d90])      : 0;
+            const d120     = colMap.d120     >= 0 ? parseNum(row[colMap.d120])     : 0;
+            const d120plus = colMap.d120plus >= 0 ? parseNum(row[colMap.d120plus]) : 0;
+            const total    = colMap.total    >= 0 ? parseNum(row[colMap.total])    : (d30 + d60 + d90 + d120 + d120plus);
 
             parsed.push({ sistema, codigo, nombre, d30, d60, d90, d120, d120plus, total });
         }
