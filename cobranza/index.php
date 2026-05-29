@@ -109,7 +109,13 @@ require_once __DIR__ . '/includes/header.php';
 <script>
 let chartAging = null, chartSistemas = null, chartRangos = null;
 
-(function() { loadDashboard(); })();
+// Esperar a que Chart.js (cargado con defer) esté disponible antes de renderizar
+function waitForChart(cb) {
+    if (typeof Chart !== 'undefined') { cb(); return; }
+    const t = setInterval(() => { if (typeof Chart !== 'undefined') { clearInterval(t); cb(); } }, 50);
+}
+
+window.addEventListener('load', loadDashboard);
 
 async function loadDashboard() {
     try {
@@ -118,12 +124,15 @@ async function loadDashboard() {
         if (data.error) { toast(data.error, 'error'); return; }
 
         renderCards(data);
-        renderAging(data.aging);
-        renderSistemas(data.sistemas);
-        renderRangos(data.rangos);
-        renderLotes(data.lotes);
+        renderLotes(data.lotes);   // independiente de Chart.js
+        waitForChart(() => {
+            renderAging(data.aging);
+            renderSistemas(data.sistemas);
+            renderRangos(data.rangos);
+        });
     } catch(e) {
         toast('Error al cargar el dashboard', 'error');
+        console.error(e);
     }
 }
 
