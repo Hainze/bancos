@@ -72,14 +72,24 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 </div>
 
-<!-- Gráfico: distribución por monto -->
-<div class="card mb-24">
-    <div class="card-title">Distribución por rango de deuda</div>
-    <div id="chart-rangos-empty" class="empty-state" style="padding:32px;display:none">
-        <div class="empty-state-icon">◈</div>
-        <div class="empty-state-text">Sin datos</div>
+<!-- Gráficos fila 2: rangos separados -->
+<div class="grid-2 mb-24">
+    <div class="card">
+        <div class="card-title">Clientes por rango de deuda</div>
+        <div id="chart-rangos-cant-empty" class="empty-state" style="padding:32px;display:none">
+            <div class="empty-state-icon">◈</div>
+            <div class="empty-state-text">Sin datos</div>
+        </div>
+        <canvas id="chart-rangos-cant" height="240"></canvas>
     </div>
-    <canvas id="chart-rangos" height="160"></canvas>
+    <div class="card">
+        <div class="card-title">Monto total por rango de deuda</div>
+        <div id="chart-rangos-monto-empty" class="empty-state" style="padding:32px;display:none">
+            <div class="empty-state-icon">◈</div>
+            <div class="empty-state-text">Sin datos</div>
+        </div>
+        <canvas id="chart-rangos-monto" height="240"></canvas>
+    </div>
 </div>
 
 <!-- Últimas cargas -->
@@ -107,7 +117,7 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <script>
-let chartAging = null, chartSistemas = null, chartRangos = null;
+let chartAging = null, chartSistemas = null;
 
 // Esperar a que Chart.js (cargado con defer) esté disponible antes de renderizar
 function waitForChart(cb) {
@@ -226,39 +236,72 @@ function renderSistemas(s) {
     });
 }
 
-function renderRangos(rangos) {
-    if (!rangos?.length) {
-        document.getElementById('chart-rangos-empty').style.display = 'block';
-        document.getElementById('chart-rangos').style.display        = 'none';
-        return;
-    }
-    document.getElementById('chart-rangos-empty').style.display = 'none';
-    document.getElementById('chart-rangos').style.display        = 'block';
+let chartRangosCant = null, chartRangosMonto = null;
 
-    if (chartRangos) chartRangos.destroy();
-    chartRangos = new Chart(document.getElementById('chart-rangos'), {
+function renderRangos(rangos) {
+    const noData = !rangos?.length;
+
+    // ── Gráfico 1: Clientes por rango ──────────────────
+    document.getElementById('chart-rangos-cant-empty').style.display = noData ? 'block' : 'none';
+    document.getElementById('chart-rangos-cant').style.display        = noData ? 'none'  : 'block';
+
+    // ── Gráfico 2: Monto por rango ─────────────────────
+    document.getElementById('chart-rangos-monto-empty').style.display = noData ? 'block' : 'none';
+    document.getElementById('chart-rangos-monto').style.display        = noData ? 'none'  : 'block';
+
+    if (noData) return;
+
+    const labels = rangos.map(r => r.label);
+    const moneyFmt = v => '$' + Intl.NumberFormat('es-AR', { notation:'compact', maximumFractionDigits:1 }).format(v);
+
+    if (chartRangosCant) chartRangosCant.destroy();
+    chartRangosCant = new Chart(document.getElementById('chart-rangos-cant'), {
         type: 'bar',
         data: {
-            labels: rangos.map(r => r.label),
-            datasets: [
-                { label:'Clientes', data: rangos.map(r => r.cant),  backgroundColor:'rgba(37,99,235,.7)',  borderColor:'#2563eb', borderWidth:1, borderRadius:4, yAxisID:'y1' },
-                { label:'Monto',    data: rangos.map(r => parseFloat(r.monto||0)), backgroundColor:'rgba(16,185,129,.5)', borderColor:'#10b981', borderWidth:1, borderRadius:4, yAxisID:'y2', type:'line', tension:.3, pointRadius:4 },
-            ]
+            labels,
+            datasets: [{
+                label: 'Clientes',
+                data: rangos.map(r => r.cant),
+                backgroundColor: 'rgba(37,99,235,.75)',
+                borderColor: '#2563eb',
+                borderWidth: 1, borderRadius: 6,
+            }]
         },
         options: {
             responsive: true,
             plugins: {
-                legend: { labels:{ color:'#7a90b0', font:{family:'Syne',size:11}, padding:12 } },
-                tooltip: { callbacks: {
-                    label: ctx => ctx.datasetIndex === 0
-                        ? ' Clientes: ' + ctx.parsed.y
-                        : ' Monto: ' + formatMoney(ctx.parsed.y)
-                }}
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.y + ' clientes' } }
             },
             scales: {
-                x:  { ticks:{ color:'#4a5f7a', font:{size:10} }, grid:{ color:'#1e2d45' } },
-                y1: { position:'left',  ticks:{ color:'#4a5f7a' }, grid:{ color:'#1e2d45' }, title:{ display:true, text:'Clientes', color:'#4a5f7a', font:{size:10} } },
-                y2: { position:'right', ticks:{ color:'#10b981', callback: v => '$'+Intl.NumberFormat('es-AR',{notation:'compact'}).format(v) }, grid:{ display:false }, title:{ display:true, text:'Monto', color:'#10b981', font:{size:10} } },
+                x: { ticks:{ color:'#4a5f7a', font:{size:11} }, grid:{ color:'#1e2d45' } },
+                y: { ticks:{ color:'#4a5f7a', stepSize:1 }, grid:{ color:'#1e2d45' } }
+            }
+        }
+    });
+
+    if (chartRangosMonto) chartRangosMonto.destroy();
+    chartRangosMonto = new Chart(document.getElementById('chart-rangos-monto'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Monto total',
+                data: rangos.map(r => parseFloat(r.monto || 0)),
+                backgroundColor: 'rgba(16,185,129,.75)',
+                borderColor: '#10b981',
+                borderWidth: 1, borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ' ' + formatMoney(ctx.parsed.y) } }
+            },
+            scales: {
+                x: { ticks:{ color:'#4a5f7a', font:{size:11} }, grid:{ color:'#1e2d45' } },
+                y: { ticks:{ color:'#4a5f7a', callback: moneyFmt }, grid:{ color:'#1e2d45' } }
             }
         }
     });
