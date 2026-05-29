@@ -10,19 +10,20 @@ require_once __DIR__ . '/includes/header.php';
         <span class="filter-bar-title">Período del informe</span>
         <div class="quick-ranges">
             <button class="qrange-btn" data-range="mes">Este mes</button>
-            <button class="qrange-btn" data-range="mes_ant">Mes anterior</button>
+            <button class="qrange-btn" data-range="mes_ant">Mes ant.</button>
+            <button class="qrange-btn" data-range="trim">Últ. 3 meses</button>
             <button class="qrange-btn active" data-range="anio">Este año</button>
             <button class="qrange-btn" data-range="todo">Todo</button>
         </div>
     </div>
     <div class="filter-bar-body">
         <div class="filter-field">
-            <label>Desde</label>
-            <input type="date" class="form-control" id="dash-desde">
+            <label>Mes desde</label>
+            <input type="month" class="form-control" id="dash-desde">
         </div>
         <div class="filter-field">
-            <label>Hasta</label>
-            <input type="date" class="form-control" id="dash-hasta">
+            <label>Mes hasta</label>
+            <input type="month" class="form-control" id="dash-hasta">
         </div>
         <div class="filter-actions">
             <button class="btn btn-primary" id="btn-filtrar"><span>◎</span> Aplicar</button>
@@ -139,14 +140,45 @@ let chartBancos = null, chartCats = null, chartFiserv = null;
 let chartCobAging = null, chartCobPri = null;
 let dashDesde = '', dashHasta = '';
 
-// ──────────────────────────────────────────────────────────
-// Init
-// ──────────────────────────────────────────────────────────
+// ── Helpers de mes ──────────────────────────────────────
+function getMonthRange(range) {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth() + 1;
+    const pad = n => String(n).padStart(2, '0');
+    const curr = `${y}-${pad(m)}`;
+    switch (range) {
+        case 'mes':     return { desde: curr, hasta: curr };
+        case 'mes_ant': { const pm=m===1?12:m-1, py=m===1?y-1:y; const s=`${py}-${pad(pm)}`; return {desde:s,hasta:s}; }
+        case 'trim':    { const pm3=m<=3?12+m-3:m-3, py3=m<=3?y-1:y; return {desde:`${py3}-${pad(pm3)}`,hasta:curr}; }
+        case 'anio':    return { desde: `${y}-01`, hasta: curr };
+        case 'todo':    return { desde: '2000-01', hasta: curr };
+        default:        return { desde: curr, hasta: curr };
+    }
+}
+function monthStart(m)  { return m ? m + '-01' : ''; }
+function monthEnd(m) {
+    if (!m) return '';
+    const [y, mo] = m.split('-').map(Number);
+    return `${y}-${String(mo).padStart(2,'0')}-${new Date(y, mo, 0).getDate()}`;
+}
+function applyMonths() {
+    dashDesde = monthStart(document.getElementById('dash-desde').value);
+    dashHasta = monthEnd(document.getElementById('dash-hasta').value);
+    const el = document.getElementById('topbar-period');
+    if (el) {
+        const fmt = m => { const [y,mo]=m.split('-').map(Number); return new Date(y,mo-1).toLocaleDateString('es-AR',{month:'long',year:'numeric'}); };
+        const mD = document.getElementById('dash-desde').value;
+        const mH = document.getElementById('dash-hasta').value;
+        el.textContent = mD===mH ? fmt(mD) : fmt(mD)+' — '+fmt(mH);
+    }
+}
+
+// ── Init ────────────────────────────────────────────────
 window.addEventListener('load', () => {
-    const r = getDateRange('anio');
-    dashDesde = r.desde; dashHasta = r.hasta;
-    document.getElementById('dash-desde').value = dashDesde;
-    document.getElementById('dash-hasta').value = dashHasta;
+    const r = getMonthRange('anio');
+    document.getElementById('dash-desde').value = r.desde;
+    document.getElementById('dash-hasta').value = r.hasta;
+    applyMonths();
     loadInforme();
 });
 
@@ -154,28 +186,29 @@ document.querySelectorAll('.qrange-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.qrange-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const r = getDateRange(btn.dataset.range);
-        dashDesde = r.desde; dashHasta = r.hasta;
-        document.getElementById('dash-desde').value = dashDesde;
-        document.getElementById('dash-hasta').value = dashHasta;
+        const r = getMonthRange(btn.dataset.range);
+        document.getElementById('dash-desde').value = r.desde;
+        document.getElementById('dash-hasta').value = r.hasta;
+        applyMonths();
         loadInforme();
     });
 });
 
 document.getElementById('btn-filtrar').addEventListener('click', () => {
-    dashDesde = document.getElementById('dash-desde').value;
-    dashHasta = document.getElementById('dash-hasta').value;
-    if (!dashDesde || !dashHasta) { toast('Seleccioná un rango de fechas', 'warning'); return; }
+    if (!document.getElementById('dash-desde').value || !document.getElementById('dash-hasta').value) {
+        toast('Seleccioná un rango de meses', 'warning'); return;
+    }
+    applyMonths();
     loadInforme();
 });
 
 document.getElementById('btn-reset').addEventListener('click', () => {
     document.querySelectorAll('.qrange-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('[data-range="anio"]')?.classList.add('active');
-    const r = getDateRange('anio');
-    dashDesde = r.desde; dashHasta = r.hasta;
-    document.getElementById('dash-desde').value = dashDesde;
-    document.getElementById('dash-hasta').value = dashHasta;
+    const r = getMonthRange('anio');
+    document.getElementById('dash-desde').value = r.desde;
+    document.getElementById('dash-hasta').value = r.hasta;
+    applyMonths();
     loadInforme();
 });
 
@@ -425,7 +458,10 @@ document.getElementById('btn-exportar').addEventListener('click', () => {
 
 function exportarExcel(data) {
     const wb = XLSX.utils.book_new();
-    const periodo = `${document.getElementById('dash-desde').value} al ${document.getElementById('dash-hasta').value}`;
+    const fmt = m => { const [y,mo]=m.split('-').map(Number); return new Date(y,mo-1).toLocaleDateString('es-AR',{month:'long',year:'numeric'}); };
+    const mD = document.getElementById('dash-desde').value;
+    const mH = document.getElementById('dash-hasta').value;
+    const periodo = mD===mH ? fmt(mD) : fmt(mD)+' al '+fmt(mH);
 
     // ── Hoja 1: Resumen ──────────────────────────────────
     const sheetResumen = [];
