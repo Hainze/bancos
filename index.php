@@ -75,6 +75,18 @@ $tools = [
         'subtitulo'   => 'Tarjetas de Crédito',
         'stats'       => false,
     ],
+    [
+        'id'          => 'cobranza',
+        'nombre'      => 'Cobranza',
+        'descripcion' => 'Cargá la cartera de deudores desde Excel, visualizá la deuda por antigüedad y sistema, priorizá clientes automáticamente y exportá con observaciones.',
+        'icono'       => '📞',
+        'color'       => 'green',
+        'url'         => '/cobranza/index.php',
+        'badge'       => 'Activo',
+        'badge_type'  => 'green',
+        'subtitulo'   => 'Gestión de Cobros',
+        'stats'       => false,
+    ],
 ];
 ?>
 <!DOCTYPE html>
