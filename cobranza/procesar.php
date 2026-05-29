@@ -206,14 +206,20 @@ function parseExcelFile(file) {
 
 function parseNum(v) {
     if (v === '' || v === null || v === undefined) return 0;
-    const s = String(v).replace(/\./g,'').replace(',','.');
+    // SheetJS ya devuelve números JS para celdas numéricas — usarlos directo
+    if (typeof v === 'number') return v;
+    // Para celdas de texto con formato argentino: "1.234,56" → 1234.56
+    const s = String(v).trim().replace(/\./g,'').replace(',','.');
     const n = parseFloat(s);
     return isNaN(n) ? 0 : n;
 }
 
 function parseSistema(v) {
+    // Acepta: 2, "2", 2.0, "Sistema 2", "negro", cualquier cosa que empiece con 2
+    const n = parseFloat(v);
+    if (n === 2) return 2;
     const s = String(v).trim().toLowerCase();
-    if (s === '2' || s === 'sistema 2' || s === 'negro') return 2;
+    if (s.startsWith('2') || s === 'sistema 2' || s === 'negro') return 2;
     return 1;
 }
 
@@ -304,14 +310,17 @@ document.getElementById('btn-procesar').addEventListener('click', async () => {
             const nombre = String(row[colMap.nombre] ?? '').trim();
             if (!nombre) continue;
 
-            const sistema  = colMap.sistema  >= 0 ? parseSistema(row[colMap.sistema])  : 1;
+            // Sistema: usa columna detectada por nombre, sino cae a la primera columna (índice 0)
+            const sistemaRaw = colMap.sistema >= 0 ? row[colMap.sistema] : row[0];
+            const sistema  = parseSistema(sistemaRaw);
             const codigo   = colMap.codigo   >= 0 ? String(row[colMap.codigo] ?? '').trim() : '';
-            const d30      = colMap.d30      >= 0 ? parseNum(row[colMap.d30])      : 0;
-            const d60      = colMap.d60      >= 0 ? parseNum(row[colMap.d60])      : 0;
-            const d90      = colMap.d90      >= 0 ? parseNum(row[colMap.d90])      : 0;
-            const d120     = colMap.d120     >= 0 ? parseNum(row[colMap.d120])     : 0;
-            const d120plus = colMap.d120plus >= 0 ? parseNum(row[colMap.d120plus]) : 0;
-            const total    = colMap.total    >= 0 ? parseNum(row[colMap.total])    : (d30 + d60 + d90 + d120 + d120plus);
+            // Montos: el Excel guarda en centavos enteros → dividir por 100
+            const d30      = colMap.d30      >= 0 ? parseNum(row[colMap.d30])      / 100 : 0;
+            const d60      = colMap.d60      >= 0 ? parseNum(row[colMap.d60])      / 100 : 0;
+            const d90      = colMap.d90      >= 0 ? parseNum(row[colMap.d90])      / 100 : 0;
+            const d120     = colMap.d120     >= 0 ? parseNum(row[colMap.d120])     / 100 : 0;
+            const d120plus = colMap.d120plus >= 0 ? parseNum(row[colMap.d120plus]) / 100 : 0;
+            const total    = colMap.total    >= 0 ? parseNum(row[colMap.total])    / 100 : (d30 + d60 + d90 + d120 + d120plus);
 
             parsed.push({ sistema, codigo, nombre, d30, d60, d90, d120, d120plus, total });
         }
