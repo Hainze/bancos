@@ -321,12 +321,18 @@ document.getElementById('btn-procesar').addEventListener('click', async () => {
             return;
         }
 
-        // 3. Cargar padrones para enriquecer
+        // 3. Cargar padrones para enriquecer (falla silenciosa — no es bloqueante)
         setProgress(true, 'Cargando padrones…', 65);
-        const padRes  = await fetch('/cobranza/api/padrones.php?action=listar');
-        const padData = await padRes.json();
-        const padMap  = {};
-        (padData.data || []).forEach(p => { padMap[p.sistema + '_' + p.codigo] = p.observacion; });
+        const padMap = {};
+        try {
+            const padRes  = await fetch('/cobranza/api/padrones.php?action=listar_todos');
+            if (padRes.ok) {
+                const padData = await padRes.json();
+                (padData.data || []).forEach(p => { padMap[p.sistema + '_' + p.codigo] = p.observacion; });
+            }
+        } catch(e) {
+            // Padrones no disponibles — se continúa sin observaciones
+        }
 
         // 4. Calcular prioridades y observaciones
         allRows = parsed.map(r => {

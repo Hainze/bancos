@@ -5,7 +5,15 @@ require_once dirname(__DIR__, 2) . '/auth/check_api.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $action = $_GET['action'] ?? '';
-$pdo    = getDB();
+
+try {
+    $pdo = getDB();
+} catch (Exception $e) {
+    echo json_encode(['error' => 'Error de conexión: ' . $e->getMessage()]);
+    exit;
+}
+
+try {
 
 switch ($action) {
 
@@ -128,4 +136,16 @@ switch ($action) {
 
     default:
         echo json_encode(['error' => 'Acción no válida']);
+}
+
+} catch (PDOException $e) {
+    if (strpos($e->getMessage(), "doesn't exist") !== false) {
+        echo json_encode([
+            'error'          => 'Tablas no creadas. Corré cobranza_install.php primero.',
+            'aging'          => [], 'sistemas' => [], 'rangos' => [],
+            'lotes'          => [], 'total_deuda' => 0, 'total_clientes' => 0,
+        ]);
+    } else {
+        echo json_encode(['error' => $e->getMessage()]);
+    }
 }
