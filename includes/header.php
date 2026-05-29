@@ -31,33 +31,33 @@ $pagina_actual = basename($_SERVER['PHP_SELF'], '.php');
 
         <nav class="sidebar-nav">
             <div class="nav-section-label">Principal</div>
-            <a href="/index.php" class="nav-item <?= $pagina_actual === 'index' ? 'active' : '' ?>">
+            <a href="/bancos/index.php" class="nav-item <?= $pagina_actual === 'index' ? 'active' : '' ?>">
                 <span class="nav-icon">◈</span>
                 <span>Dashboard</span>
             </a>
-            <a href="/procesar.php" class="nav-item <?= $pagina_actual === 'procesar' ? 'active' : '' ?>">
+            <a href="/bancos/procesar.php" class="nav-item <?= $pagina_actual === 'procesar' ? 'active' : '' ?>">
                 <span class="nav-icon">⬆</span>
                 <span>Importar Excel</span>
             </a>
-            <a href="/movimientos.php" class="nav-item <?= $pagina_actual === 'movimientos' ? 'active' : '' ?>">
+            <a href="/bancos/movimientos.php" class="nav-item <?= $pagina_actual === 'movimientos' ? 'active' : '' ?>">
                 <span class="nav-icon">≡</span>
                 <span>Movimientos</span>
             </a>
-            <a href="/reportes.php" class="nav-item <?= $pagina_actual === 'reportes' ? 'active' : '' ?>">
+            <a href="/bancos/reportes.php" class="nav-item <?= $pagina_actual === 'reportes' ? 'active' : '' ?>">
                 <span class="nav-icon">◎</span>
                 <span>Reportes</span>
             </a>
 
             <div class="nav-section-label">Padrones</div>
-            <a href="/padrones.php?tab=categorias" class="nav-item <?= ($pagina_actual === 'padrones' && ($_GET['tab'] ?? '') === 'categorias') ? 'active' : '' ?>">
+            <a href="/bancos/padrones.php?tab=categorias" class="nav-item <?= ($pagina_actual === 'padrones' && ($_GET['tab'] ?? '') === 'categorias') ? 'active' : '' ?>">
                 <span class="nav-icon">▦</span>
                 <span>Categorías</span>
             </a>
-            <a href="/padrones.php?tab=palabras" class="nav-item <?= ($pagina_actual === 'padrones' && ($_GET['tab'] ?? '') === 'palabras') ? 'active' : '' ?>">
+            <a href="/bancos/padrones.php?tab=palabras" class="nav-item <?= ($pagina_actual === 'padrones' && ($_GET['tab'] ?? '') === 'palabras') ? 'active' : '' ?>">
                 <span class="nav-icon">◉</span>
                 <span>Palabras Clave</span>
             </a>
-            <a href="/padrones.php?tab=clientes" class="nav-item <?= ($pagina_actual === 'padrones' && ($_GET['tab'] ?? '') === 'clientes') ? 'active' : '' ?>">
+            <a href="/bancos/padrones.php?tab=clientes" class="nav-item <?= ($pagina_actual === 'padrones' && ($_GET['tab'] ?? '') === 'clientes') ? 'active' : '' ?>">
                 <span class="nav-icon">◷</span>
                 <span>Clientes</span>
             </a>

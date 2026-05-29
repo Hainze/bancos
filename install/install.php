@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/config.php';
+require_once dirname(__DIR__) . '/config.php';
 
 $defaultPassword = 'Admin2026!';
 $defaultHash     = password_hash($defaultPassword, PASSWORD_BCRYPT);

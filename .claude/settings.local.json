@@ -31,7 +31,11 @@
       "Bash(Out-Null)",
       "Bash(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\\\\facturacion\\\\includes\")",
       "Bash(Write-Host \"Dirs created\")",
-      "Bash(mkdir -p \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\memory\" 2>/dev/null; echo \"ok\")"
+      "Bash(mkdir -p \"C:\\\\Users\\\\facun\\\\.claude\\\\projects\\\\c--Users-facun-OneDrive-Desktop-bancos\\\\memory\" 2>/dev/null; echo \"ok\")",
+      "Bash(sed -i \"s|require_once __DIR__ . '/config.php';|require_once dirname\\(__DIR__\\) . '/config.php';|g\" \"c:/Users/facun/OneDrive/Desktop/bancos/install/install.php\")",
+      "Bash(sed -i \"s|require_once __DIR__ . '/config.php';|require_once dirname\\(__DIR__\\) . '/config.php';|g\" \"c:/Users/facun/OneDrive/Desktop/bancos/install/cobranza_install.php\")",
+      "Bash(sed -i \"s|require_once __DIR__ . '/config.php';|require_once dirname\\(__DIR__\\) . '/config.php';|g\" \"c:/Users/facun/OneDrive/Desktop/bancos/install/facturacion_install.php\")",
+      "Bash(sed -i \"s|require_once __DIR__ . '/config.php';|require_once dirname\\(__DIR__\\) . '/config.php';|g\" \"c:/Users/facun/OneDrive/Desktop/bancos/install/fiserv_install.php\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\facun\\.claude\\projects\\c--Users-facun-OneDrive-Desktop-bancos"
