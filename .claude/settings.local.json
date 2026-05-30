@@ -35,7 +35,9 @@
       "Bash(sed -i \"s|require_once __DIR__ . '/config.php';|require_once dirname\\(__DIR__\\) . '/config.php';|g\" \"c:/Users/facun/OneDrive/Desktop/bancos/install/install.php\")",
       "Bash(sed -i \"s|require_once __DIR__ . '/config.php';|require_once dirname\\(__DIR__\\) . '/config.php';|g\" \"c:/Users/facun/OneDrive/Desktop/bancos/install/cobranza_install.php\")",
       "Bash(sed -i \"s|require_once __DIR__ . '/config.php';|require_once dirname\\(__DIR__\\) . '/config.php';|g\" \"c:/Users/facun/OneDrive/Desktop/bancos/install/facturacion_install.php\")",
-      "Bash(sed -i \"s|require_once __DIR__ . '/config.php';|require_once dirname\\(__DIR__\\) . '/config.php';|g\" \"c:/Users/facun/OneDrive/Desktop/bancos/install/fiserv_install.php\")"
+      "Bash(sed -i \"s|require_once __DIR__ . '/config.php';|require_once dirname\\(__DIR__\\) . '/config.php';|g\" \"c:/Users/facun/OneDrive/Desktop/bancos/install/fiserv_install.php\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\" -Force)",
+      "Bash(Format-Table -AutoSize)"
     ],
     "additionalDirectories": [
       "C:\\Users\\facun\\.claude\\projects\\c--Users-facun-OneDrive-Desktop-bancos"
