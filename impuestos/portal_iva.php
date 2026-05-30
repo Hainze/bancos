@@ -68,7 +68,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
         </div>
     </div>
 
-    <!-- Tabla VENTAS (neto = facturado - restitución) -->
+    <!-- Tabla VENTAS — 9 columnas (A=Período, B-E=RI, F-I=CF) -->
     <div class="card">
         <div class="card-title" style="color:#10b981">Ventas (Facturado − Restitución)</div>
         <div style="overflow-x:auto">
@@ -77,13 +77,17 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
                     <tr>
                         <th rowspan="2" style="vertical-align:middle">Período</th>
                         <th colspan="4" style="text-align:center;background:rgba(16,185,129,.1);color:#10b981">Operaciones con RI y Monotributistas</th>
-                        <th colspan="4" style="text-align:center;background:rgba(37,99,235,.1);color:var(--accent-light)">Operaciones con CF, Exentos y No Alcanzados</th>
+                        <th colspan="4" style="text-align:center;background:rgba(37,99,235,.1);color:var(--accent-light)">Operaciones con CF, Exentos y No Alc</th>
                     </tr>
                     <tr>
-                        <th style="text-align:right">IVA 10,5%</th><th style="text-align:right">Neto 10,5%</th>
-                        <th style="text-align:right">IVA 21%</th><th style="text-align:right">Neto 21%</th>
-                        <th style="text-align:right">IVA 10,5%</th><th style="text-align:right">Neto 10,5%</th>
-                        <th style="text-align:right">IVA 21%</th><th style="text-align:right">Neto 21%</th>
+                        <th style="text-align:right">IVA 10,5%</th>
+                        <th style="text-align:right">Neto 10,5%</th>
+                        <th style="text-align:right">IVA 21%</th>
+                        <th style="text-align:right">Neto 21%</th>
+                        <th style="text-align:right">IVA 10,5%</th>
+                        <th style="text-align:right">Neto 10,5%</th>
+                        <th style="text-align:right">IVA 21%</th>
+                        <th style="text-align:right">Neto 21%</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-ventas"></tbody>
@@ -302,13 +306,14 @@ function renderTablas() {
         <td class="mono" style="text-align:right">${fmt(f.c_neto27)}</td>
     </tr>`).join('');
 
+    // Ventas: 9 columnas seguidas (sin separador)
     document.getElementById('tbody-ventas').innerHTML = filas.map(f => `<tr>
         <td class="mono" style="font-weight:600">${periodo(f)}</td>
         <td class="mono" style="text-align:right">${fmt(f.vRI_iva105)}</td>
         <td class="mono" style="text-align:right">${fmt(f.vRI_neto105)}</td>
         <td class="mono" style="text-align:right">${fmt(f.vRI_iva21)}</td>
         <td class="mono" style="text-align:right">${fmt(f.vRI_neto21)}</td>
-        <td class="mono" style="text-align:right">${fmt(f.vCF_iva105)}</td>
+        <td class="mono" style="text-align:right;border-left:1px solid var(--border)">${fmt(f.vCF_iva105)}</td>
         <td class="mono" style="text-align:right">${fmt(f.vCF_neto105)}</td>
         <td class="mono" style="text-align:right">${fmt(f.vCF_iva21)}</td>
         <td class="mono" style="text-align:right">${fmt(f.vCF_neto21)}</td>
@@ -333,29 +338,31 @@ function exportarExcel() {
     // Fila vacía separadora
     rows.push([]);
 
-    // ── Bloque Ventas ──────────────────────────────────────
-    rows.push(['Ventas','','Operaciones con RI y Monotributistas','','','','Operaciones con CF, Ex y No Alc','','','']);
-    rows.push(['Período','Iva al 10,5%','Neto al 10,5%','Iva al 21%','Neto al 21%','','Iva al 10,5%','Neto al 10,5%','Iva al 21%','Neto al 21%']);
+    // ── Bloque Ventas — 9 columnas, sin separador ──────────
+    // Fila 0 de ventas: título + labels de grupos (col 1-4 = RI, col 5-8 = CF)
+    rows.push(['Ventas','Operaciones con RI y Monotributistas','','','','Operaciones con CF, Ex y No Alc','','','']);
+    // Fila 1 de ventas: sub-headers
+    rows.push(['Período','Iva al 10,5%','Neto al 10,5%','Iva al 21%','Neto al 21%','Iva al 10,5%','Neto al 10,5%','Iva al 21%','Neto al 21%']);
     for (const f of ok) {
         rows.push([
             periodo(f),
             f.vRI_iva105, f.vRI_neto105, f.vRI_iva21, f.vRI_neto21,
-            '',
             f.vCF_iva105, f.vCF_neto105, f.vCF_iva21, f.vCF_neto21,
         ]);
     }
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [
-        {wch:12},{wch:16},{wch:16},{wch:16},{wch:16},{wch:14},{wch:14},
-        {wch:4},{wch:16},{wch:16},{wch:16},{wch:16},
+        {wch:12},{wch:16},{wch:16},{wch:16},{wch:16},
+        {wch:16},{wch:16},{wch:16},{wch:16},
     ];
 
-    // Merge de encabezado ventas
-    const vStartRow = ok.length + 3; // filas compras + separador + fila ventas header
+    // Merges en el bloque ventas
+    // El bloque ventas empieza en fila: 1 (compras header) + ok.length (datos) + 1 (separador) = ok.length + 2
+    const vR = ok.length + 2; // fila del "Ventas" label
     ws['!merges'] = [
-        { s:{r:vStartRow,c:2}, e:{r:vStartRow,c:4} }, // RI y Mono
-        { s:{r:vStartRow,c:6}, e:{r:vStartRow,c:9} }, // CF
+        { s:{r:vR,c:1}, e:{r:vR,c:4} }, // RI y Mono label
+        { s:{r:vR,c:5}, e:{r:vR,c:8} }, // CF label
     ];
 
     const wb = XLSX.utils.book_new();
