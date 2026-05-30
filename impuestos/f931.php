@@ -58,6 +58,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
                         <th>Mes</th>
                         <th>Año</th>
                         <th style="text-align:right">Suma Rem. 9</th>
+                        <th style="text-align:right;color:#f59e0b">Total Retenciones</th>
                         <th style="text-align:right;color:#10b981">351 Contrib. Seg. Social</th>
                         <th style="text-align:right;color:#10b981">301 Aportes Seg. Social</th>
                         <th style="text-align:right;color:#10b981">360 RENATRE</th>
@@ -156,7 +157,8 @@ function parsearF931(text, fileName) {
         cuit:    '',
         mes:     '',
         anio:    '',
-        rem9:    0,
+        rem9:       0,
+        retenciones: 0,
         c351: 0, c301: 0, c360: 0, c352: 0, c935: 0,
         c302: 0, c270: 0, c312: 0, c028: 0,
         parseOk: true,
@@ -177,6 +179,10 @@ function parsearF931(text, fileName) {
     // Suma de Rem. 9
     const mRem9 = text.match(/Suma\s+de\s+Rem\.?\s*9\s*:?\s*([\d.,]+)/i);
     if (mRem9) resultado.rem9 = parseNum(mRem9[1]);
+
+    // Total retenciones (sección III)
+    const mRet = text.match(/Total\s+retenciones\s+([\d.,]+)/i);
+    if (mRet) resultado.retenciones = parseNum(mRet[1]);
 
     // Sección VIII — Montos que se ingresan
     // Estrategia: buscar el código seguido (en la misma línea o la próxima) del monto
@@ -273,6 +279,7 @@ function renderTabla() {
             <td class="mono" style="text-align:center">${f.mes  || '<span class="val-err">?</span>'}</td>
             <td class="mono" style="text-align:center">${f.anio || '<span class="val-err">?</span>'}</td>
             <td class="mono" style="text-align:right;font-weight:600">${fmt(f.rem9)}</td>
+            <td class="mono" style="text-align:right">${fmt(f.retenciones)}</td>
             <td class="mono" style="text-align:right">${fmt(f.c351)}</td>
             <td class="mono" style="text-align:right">${fmt(f.c301)}</td>
             <td class="mono" style="text-align:right">${fmt(f.c360)}</td>
@@ -297,7 +304,7 @@ function exportarExcel() {
     if (!filas.length) return;
 
     const headers = [
-        'Archivo','CUIT','Mes','Año','Suma Rem. 9',
+        'Archivo','CUIT','Mes','Año','Suma Rem. 9','Total Retenciones',
         '351 - Contrib. Seg. Social',
         '301 - Aportes Seg. Social',
         '360 - RENATRE',
@@ -315,7 +322,7 @@ function exportarExcel() {
         if (!f.parseOk) { rows.push([f.archivo, 'ERROR', '', '', '', '', '', '', '', '', '', '', '', '', '']); continue; }
         const total = f.c351+f.c301+f.c360+f.c352+f.c935+f.c302+f.c270+f.c312+f.c028;
         rows.push([
-            f.archivo, f.cuit, f.mes, f.anio, f.rem9,
+            f.archivo, f.cuit, f.mes, f.anio, f.rem9, f.retenciones,
             f.c351, f.c301, f.c360, f.c352, f.c935,
             f.c302, f.c270, f.c312, f.c028, total,
         ]);
@@ -326,7 +333,8 @@ function exportarExcel() {
         const tot = (col) => filas.filter(f => f.parseOk).reduce((s, f) => s + (f[col] || 0), 0);
         rows.push([
             'TOTALES', '', '', '',
-            tot('rem9'), tot('c351'), tot('c301'), tot('c360'), tot('c352'),
+            tot('rem9'), tot('retenciones'),
+            tot('c351'), tot('c301'), tot('c360'), tot('c352'),
             tot('c935'), tot('c302'), tot('c270'), tot('c312'), tot('c028'),
             tot('c351')+tot('c301')+tot('c360')+tot('c352')+tot('c935')+tot('c302')+tot('c270')+tot('c312')+tot('c028'),
         ]);
@@ -334,7 +342,7 @@ function exportarExcel() {
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [
-        {wch:30},{wch:16},{wch:6},{wch:6},{wch:16},
+        {wch:30},{wch:16},{wch:6},{wch:6},{wch:16},{wch:18},
         {wch:22},{wch:22},{wch:14},{wch:22},{wch:16},
         {wch:22},{wch:16},{wch:12},{wch:20},{wch:16},
     ];
