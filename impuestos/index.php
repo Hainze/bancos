@@ -143,6 +143,7 @@ $mesesNombres = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Ag
                         <?php endfor; ?>
                     </select>
                     <button class="btn btn-secondary btn-sm" id="btn-refresh">↺</button>
+                    <button class="btn btn-danger btn-sm" onclick="openModal('modal-reset-imp')">⚠ Eliminar todo</button>
                 </div>
             </div>
 
@@ -396,6 +397,36 @@ document.getElementById('fil-tipo').addEventListener('change', cargarArchivos);
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 cargarArchivos();
+
+document.getElementById('btn-confirmar-reset-imp')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-confirmar-reset-imp');
+    btn.disabled = true; btn.textContent = 'Eliminando...';
+    const res  = await fetch('/api/impuestos.php?action=eliminar_todo', { method: 'POST' });
+    const data = await res.json();
+    closeModal('modal-reset-imp');
+    btn.disabled = false; btn.textContent = 'Sí, eliminar todo';
+    if (data.success) { toast('Todos los archivos eliminados', 'success'); cargarArchivos(); }
+    else toast(data.error || 'Error', 'error');
+});
 </script>
+
+<div class="modal-overlay" id="modal-reset-imp">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <div class="modal-title" style="color:var(--red)">⚠ Eliminar todos los archivos de Impuestos</div>
+            <button class="modal-close">✕</button>
+        </div>
+        <p style="color:var(--sub);font-size:14px;margin-bottom:16px">
+            Se van a eliminar <strong style="color:var(--text)">todos los archivos de declaraciones juradas</strong> cargados.
+        </p>
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--sub)">
+            Esta acción <strong style="color:var(--red)">no se puede deshacer</strong>.
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="closeModal('modal-reset-imp')">Cancelar</button>
+            <button class="btn btn-danger" id="btn-confirmar-reset-imp">Sí, eliminar todo</button>
+        </div>
+    </div>
+</div>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

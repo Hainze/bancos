@@ -148,6 +148,12 @@ try {
             echo json_encode(['success' => true]);
             break;
 
+        case 'eliminar_todo':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') { echo json_encode(['error' => 'POST requerido']); break; }
+            $pdo->exec("DELETE FROM iva_lotes");
+            echo json_encode(['success' => true]);
+            break;
+
         default:
             echo json_encode(['error' => 'Acción no reconocida: ' . $action]);
     }

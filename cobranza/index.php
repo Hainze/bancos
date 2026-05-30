@@ -96,7 +96,29 @@ require_once __DIR__ . '/includes/header.php';
 <div class="card">
     <div class="flex-between mb-16">
         <div class="card-title" style="margin:0">Últimas carteras cargadas</div>
-        <a href="/cobranza/procesar.php" class="btn btn-primary btn-sm">⬆ Subir Excel</a>
+        <div style="display:flex;gap:8px">
+            <a href="/cobranza/procesar.php" class="btn btn-primary btn-sm">⬆ Subir Excel</a>
+            <button class="btn btn-danger btn-sm" onclick="openModal('modal-reset-cobranza')">⚠ Eliminar todo</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-reset-cobranza">
+        <div class="modal" style="max-width:420px">
+            <div class="modal-header">
+                <div class="modal-title" style="color:var(--red)">⚠ Eliminar todos los datos de Cobranza</div>
+                <button class="modal-close">✕</button>
+            </div>
+            <p style="color:var(--sub);font-size:14px;margin-bottom:16px">
+                Se van a eliminar <strong style="color:var(--text)">todas las carteras cargadas y todos los padrones</strong>.
+            </p>
+            <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--sub)">
+                Esta acción <strong style="color:var(--red)">no se puede deshacer</strong>.
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end">
+                <button class="btn btn-secondary" onclick="closeModal('modal-reset-cobranza')">Cancelar</button>
+                <button class="btn btn-danger" id="btn-confirmar-reset-cobranza">Sí, eliminar todo</button>
+            </div>
+        </div>
     </div>
     <div class="table-wrap">
         <table>
@@ -326,6 +348,17 @@ function renderLotes(lotes) {
         </td>
     </tr>`).join('');
 }
+
+document.getElementById('btn-confirmar-reset-cobranza')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-confirmar-reset-cobranza');
+    btn.disabled = true; btn.textContent = 'Eliminando...';
+    const res  = await fetch('/cobranza/api/cartera.php?action=eliminar_todo', { method: 'POST' });
+    const data = await res.json();
+    closeModal('modal-reset-cobranza');
+    btn.disabled = false; btn.textContent = 'Sí, eliminar todo';
+    if (data.success) { toast('Todos los datos de Cobranza eliminados', 'success'); loadDashboard(); }
+    else toast(data.error || 'Error', 'error');
+});
 
 async function eliminarLote(id) {
     confirmAction('¿Eliminar esta cartera? Se borrarán todos los clientes asociados.', async () => {

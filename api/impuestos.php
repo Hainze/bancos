@@ -131,6 +131,12 @@ switch ($action) {
         echo json_encode(['data' => $st->fetchAll()]);
         break;
 
+    case 'eliminar_todo':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST requerido']); break; }
+        $pdo->exec("DELETE FROM imp_archivos");
+        echo json_encode(['success' => true]);
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Acción no válida']);

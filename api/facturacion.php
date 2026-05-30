@@ -476,6 +476,15 @@ switch ($action) {
         ]);
         break;
 
+    case 'eliminar_todo':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST requerido']); break; }
+        $pdo->exec("DELETE FROM fact_compras_renglones");
+        $pdo->exec("DELETE FROM fact_ventas_renglones");
+        $pdo->exec("DELETE FROM fact_compras");
+        $pdo->exec("DELETE FROM fact_ventas");
+        echo json_encode(['success' => true]);
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Acción no válida: ' . htmlspecialchars($action)]);

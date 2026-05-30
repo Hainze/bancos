@@ -25,7 +25,10 @@ require_once __DIR__ . '/includes/header.php';
     <!-- ── DERECHA: Accesos rápidos ── -->
     <div>
         <div class="card">
-            <div class="card-title">Accesos rápidos</div>
+            <div class="flex-between" style="margin-bottom:16px">
+                <div class="card-title" style="margin:0">Accesos rápidos</div>
+                <button class="btn btn-danger btn-sm" onclick="openModal('modal-reset-fact')">⚠ Eliminar todo</button>
+            </div>
             <div style="display:flex;flex-direction:column;gap:12px">
 
                 <a href="/facturacion/clientes.php" class="btn btn-secondary" style="justify-content:flex-start;gap:12px;padding:14px 16px">
@@ -138,6 +141,37 @@ function escHtml(str) {
 }
 
 cargarClientes();
+
+document.getElementById('btn-confirmar-reset-fact')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-confirmar-reset-fact');
+    btn.disabled = true; btn.textContent = 'Eliminando...';
+    const res  = await fetch('/api/facturacion.php?action=eliminar_todo', { method: 'POST' });
+    const data = await res.json();
+    closeModal('modal-reset-fact');
+    btn.disabled = false; btn.textContent = 'Sí, eliminar todo';
+    if (data.success) { toast('Todos los comprobantes eliminados', 'success'); cargarClientes(); }
+    else toast(data.error || 'Error', 'error');
+});
 </script>
+
+<div class="modal-overlay" id="modal-reset-fact">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <div class="modal-title" style="color:var(--red)">⚠ Eliminar todos los comprobantes</div>
+            <button class="modal-close">✕</button>
+        </div>
+        <p style="color:var(--sub);font-size:14px;margin-bottom:16px">
+            Se van a eliminar <strong style="color:var(--text)">todas las compras y ventas</strong> registradas.<br>
+            Los clientes <strong>no</strong> se eliminan.
+        </p>
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--sub)">
+            Esta acción <strong style="color:var(--red)">no se puede deshacer</strong>.
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="closeModal('modal-reset-fact')">Cancelar</button>
+            <button class="btn btn-danger" id="btn-confirmar-reset-fact">Sí, eliminar todo</button>
+        </div>
+    </div>
+</div>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

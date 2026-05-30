@@ -108,7 +108,10 @@ require_once __DIR__ . '/includes/header.php';
 <div class="card mt-24">
     <div class="flex-between mb-16">
         <div class="card-title" style="margin:0">Historial de archivos procesados</div>
-        <button class="btn btn-secondary btn-sm" id="btn-refresh-historial">↺ Actualizar</button>
+        <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-historial">↺ Actualizar</button>
+            <button class="btn btn-danger btn-sm" onclick="openModal('modal-reset-iva')">⚠ Eliminar todo</button>
+        </div>
     </div>
     <div class="table-wrap">
         <table>
@@ -309,6 +312,36 @@ document.getElementById('btn-confirmar-eliminar').addEventListener('click', asyn
 document.getElementById('btn-refresh-historial').addEventListener('click', cargarHistorial);
 
 cargarHistorial();
+
+document.getElementById('btn-confirmar-reset-iva')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-confirmar-reset-iva');
+    btn.disabled = true; btn.textContent = 'Eliminando...';
+    const res  = await fetch('/api/libro_iva.php?action=eliminar_todo', { method: 'POST' });
+    const data = await res.json();
+    closeModal('modal-reset-iva');
+    btn.disabled = false; btn.textContent = 'Sí, eliminar todo';
+    if (data.success) { toast('Todos los archivos IVA eliminados', 'success'); cargarHistorial(); }
+    else toast(data.error || 'Error', 'error');
+});
 </script>
+
+<div class="modal-overlay" id="modal-reset-iva">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <div class="modal-title" style="color:var(--red)">⚠ Eliminar todos los archivos IVA</div>
+            <button class="modal-close">✕</button>
+        </div>
+        <p style="color:var(--sub);font-size:14px;margin-bottom:16px">
+            Se van a eliminar <strong style="color:var(--text)">todos los libros de compras procesados</strong>.
+        </p>
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--sub)">
+            Esta acción <strong style="color:var(--red)">no se puede deshacer</strong>.
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="closeModal('modal-reset-iva')">Cancelar</button>
+            <button class="btn btn-danger" id="btn-confirmar-reset-iva">Sí, eliminar todo</button>
+        </div>
+    </div>
+</div>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

@@ -28,6 +28,26 @@ require_once __DIR__ . '/includes/header.php';
             <button class="btn btn-primary" id="btn-filtrar"><span>◎</span> Aplicar</button>
             <button class="btn btn-secondary" id="btn-reset">Resetear</button>
             <a href="/fiserv/procesar.php" class="btn btn-success">⬆ Subir PDF</a>
+            <button class="btn btn-danger" onclick="openModal('modal-reset-fiserv')">⚠ Eliminar todo</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal-reset-fiserv">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <div class="modal-title" style="color:var(--red)">⚠ Eliminar todos los datos de Fiserv</div>
+            <button class="modal-close">✕</button>
+        </div>
+        <p style="color:var(--sub);font-size:14px;margin-bottom:16px">
+            Se van a eliminar <strong style="color:var(--text)">todas las liquidaciones y lotes</strong> importados.
+        </p>
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--sub)">
+            Esta acción <strong style="color:var(--red)">no se puede deshacer</strong>.
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="closeModal('modal-reset-fiserv')">Cancelar</button>
+            <button class="btn btn-danger" id="btn-confirmar-reset-fiserv">Sí, eliminar todo</button>
         </div>
     </div>
 </div>
@@ -270,6 +290,17 @@ function renderDsctos(d) {
         }
     });
 }
+
+document.getElementById('btn-confirmar-reset-fiserv')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-confirmar-reset-fiserv');
+    btn.disabled = true; btn.textContent = 'Eliminando...';
+    const res  = await fetch('/fiserv/api/stats.php?action=eliminar_todo', { method: 'POST' });
+    const data = await res.json();
+    closeModal('modal-reset-fiserv');
+    btn.disabled = false; btn.textContent = 'Sí, eliminar todo';
+    if (data.success) { toast('Todos los datos de Fiserv eliminados', 'success'); loadDashboard(); }
+    else toast(data.error || 'Error', 'error');
+});
 
 function renderLotes(lotes) {
     const tbody = document.getElementById('lotes-body');
