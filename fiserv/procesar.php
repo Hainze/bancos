@@ -235,10 +235,14 @@ function parseLineItems(chunk) {
 
         if      (/VENTAS\s+C\/DESCUENTO\s+CONTADO/i.test(desc))
             v.ventas_contado     += sign === '+' ? amt : -amt;
+        // Ventas con financiación de cuotas (ej: "VENTAS C/DTO CUOTAS FINANC. OTORG.")
+        else if (/VENTAS\s+C\/DTO\s+CUOTAS/i.test(desc))
+            v.ventas_contado     += sign === '+' ? amt : -amt;
         else if (/IVA\s+ARANCEL\s+CUOTAS/i.test(desc))
             v.iva_arancel_cuotas += delta;
         else if (/ARANCEL\s+CUOTAS/i.test(desc))
             v.arancel_cuotas     += delta;
+        // IVA sobre arancel (contado) — debe ir ANTES del genérico S/DTO
         else if (/IVA\s+CRED\.?FISC.*S\/ARANC/i.test(desc))
             v.iva_arancel        += delta;
         else if (/^ARANCEL\s*$/i.test(desc))
@@ -249,13 +253,15 @@ function parseLineItems(chunk) {
             v.promo_cuota_ahora  += delta;
         else if (/DESCUENTO\s+FINANC\s+OTORG/i.test(desc))
             v.dto_financ_cuotas  += delta;
-        else if (/IVA\s+RI\s+CRED.*S\/DTO/i.test(desc))
+        // IVA sobre descuento financiero de cuotas — con o sin "RI" (ej: "IVA CRED.FISC.COM.L 25063 S/DTO F.OTOR 10,50%")
+        else if (/IVA\s+(RI\s+)?CRED\.?FISC.*S\/DTO/i.test(desc))
             v.iva_ri_dto_financ  += delta;
         else if (/DTO\s+S\/VENTAS\s+FIN\s+ADQ/i.test(desc))
             v.dto_ventas_fin_adq += delta;
         else if (/IVA\s+S\/DTO\s+FIN\s+ADQ/i.test(desc))
             v.iva_dto_fin_adq    += delta;
-        else if (/PER\s+B\.?A\.?I/i.test(desc))
+        // PER B.A.I — flexible para puntos y espacios variables entre letras
+        else if (/PER\s+B[\s.]*A[\s.]*I/i.test(desc))
             v.per_bai_brdn       += delta;
         else if (/RETENCION\s+ING\.?\s*BRUTOS.*SIRTAC/i.test(desc))
             v.ret_iibb_sirtac    += delta;
