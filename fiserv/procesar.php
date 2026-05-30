@@ -251,7 +251,7 @@ function parseLineItems(chunk) {
             v.iva_promo_cuota    += delta;
         else if (/PROMO\s+CUOTA\s+AHORA/i.test(desc))
             v.promo_cuota_ahora  += delta;
-        else if (/DESCUENTO\s+FINANC\s+OTORG/i.test(desc))
+        else if (/DESCUENTO\s+FINANC[\s.]OTORG/i.test(desc))
             v.dto_financ_cuotas  += delta;
         // IVA sobre descuento financiero de cuotas — con o sin "RI" (ej: "IVA CRED.FISC.COM.L 25063 S/DTO F.OTOR 10,50%")
         else if (/IVA\s+(RI\s+)?CRED\.?FISC.*S\/DTO/i.test(desc))
