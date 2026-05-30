@@ -87,6 +87,10 @@ $fact_cliente_nombre = $_SESSION['fact_cliente_nombre'] ?? '';
                 <span class="nav-icon">👥</span>
                 <span>Parsear F.931</span>
             </a>
+            <a href="/impuestos/portal_iva.php" class="nav-item <?= $pagina_actual === 'portal_iva' ? 'active' : '' ?>">
+                <span class="nav-icon">🧾</span>
+                <span>Parsear Portal IVA</span>
+            </a>
 
             <div class="nav-section-label">Clientes</div>
             <a href="/facturacion/index.php" class="nav-item">
