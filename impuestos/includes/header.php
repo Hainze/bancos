@@ -82,6 +82,12 @@ $fact_cliente_nombre = $_SESSION['fact_cliente_nombre'] ?? '';
                 <span>Informes</span>
             </a>
 
+            <div class="nav-section-label">Herramientas</div>
+            <a href="/impuestos/f931.php" class="nav-item <?= $pagina_actual === 'f931' ? 'active' : '' ?>">
+                <span class="nav-icon">👥</span>
+                <span>Parsear F.931</span>
+            </a>
+
             <div class="nav-section-label">Clientes</div>
             <a href="/facturacion/index.php" class="nav-item">
                 <span class="nav-icon">◈</span>
