@@ -313,16 +313,18 @@ document.getElementById('btn-refresh-historial').addEventListener('click', carga
 
 cargarHistorial();
 
-document.getElementById('btn-confirmar-reset-iva')?.addEventListener('click', async () => {
+async function confirmarResetIva() {
     const btn = document.getElementById('btn-confirmar-reset-iva');
     btn.disabled = true; btn.textContent = 'Eliminando...';
-    const res  = await fetch('/api/libro_iva.php?action=eliminar_todo', { method: 'POST' });
-    const data = await res.json();
-    closeModal('modal-reset-iva');
-    btn.disabled = false; btn.textContent = 'Sí, eliminar todo';
-    if (data.success) { toast('Todos los archivos IVA eliminados', 'success'); cargarHistorial(); }
-    else toast(data.error || 'Error', 'error');
-});
+    try {
+        const res  = await fetch('/api/libro_iva.php?action=eliminar_todo', { method: 'POST' });
+        const data = await res.json();
+        closeModal('modal-reset-iva');
+        if (data.success) { toast('Todos los archivos IVA eliminados', 'success'); cargarHistorial(); }
+        else toast(data.error || 'Error', 'error');
+    } catch(e) { toast('Error de conexión', 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Sí, eliminar todo'; }
+}
 </script>
 
 <div class="modal-overlay" id="modal-reset-iva">
@@ -339,7 +341,7 @@ document.getElementById('btn-confirmar-reset-iva')?.addEventListener('click', as
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="btn btn-secondary" onclick="closeModal('modal-reset-iva')">Cancelar</button>
-            <button class="btn btn-danger" id="btn-confirmar-reset-iva">Sí, eliminar todo</button>
+            <button class="btn btn-danger" id="btn-confirmar-reset-iva" onclick="confirmarResetIva()">Sí, eliminar todo</button>
         </div>
     </div>
 </div>

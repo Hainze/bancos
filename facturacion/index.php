@@ -142,16 +142,18 @@ function escHtml(str) {
 
 cargarClientes();
 
-document.getElementById('btn-confirmar-reset-fact')?.addEventListener('click', async () => {
+async function confirmarResetFact() {
     const btn = document.getElementById('btn-confirmar-reset-fact');
     btn.disabled = true; btn.textContent = 'Eliminando...';
-    const res  = await fetch('/api/facturacion.php?action=eliminar_todo', { method: 'POST' });
-    const data = await res.json();
-    closeModal('modal-reset-fact');
-    btn.disabled = false; btn.textContent = 'Sí, eliminar todo';
-    if (data.success) { toast('Todos los comprobantes eliminados', 'success'); cargarClientes(); }
-    else toast(data.error || 'Error', 'error');
-});
+    try {
+        const res  = await fetch('/api/facturacion.php?action=eliminar_todo', { method: 'POST' });
+        const data = await res.json();
+        closeModal('modal-reset-fact');
+        if (data.success) { toast('Todos los comprobantes eliminados', 'success'); cargarClientes(); }
+        else toast(data.error || 'Error', 'error');
+    } catch(e) { toast('Error de conexión', 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Sí, eliminar todo'; }
+}
 </script>
 
 <div class="modal-overlay" id="modal-reset-fact">
@@ -169,7 +171,7 @@ document.getElementById('btn-confirmar-reset-fact')?.addEventListener('click', a
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="btn btn-secondary" onclick="closeModal('modal-reset-fact')">Cancelar</button>
-            <button class="btn btn-danger" id="btn-confirmar-reset-fact">Sí, eliminar todo</button>
+            <button class="btn btn-danger" id="btn-confirmar-reset-fact" onclick="confirmarResetFact()">Sí, eliminar todo</button>
         </div>
     </div>
 </div>

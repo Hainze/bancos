@@ -398,16 +398,18 @@ function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 
 cargarArchivos();
 
-document.getElementById('btn-confirmar-reset-imp')?.addEventListener('click', async () => {
+async function confirmarResetImp() {
     const btn = document.getElementById('btn-confirmar-reset-imp');
     btn.disabled = true; btn.textContent = 'Eliminando...';
-    const res  = await fetch('/api/impuestos.php?action=eliminar_todo', { method: 'POST' });
-    const data = await res.json();
-    closeModal('modal-reset-imp');
-    btn.disabled = false; btn.textContent = 'Sí, eliminar todo';
-    if (data.success) { toast('Todos los archivos eliminados', 'success'); cargarArchivos(); }
-    else toast(data.error || 'Error', 'error');
-});
+    try {
+        const res  = await fetch('/api/impuestos.php?action=eliminar_todo', { method: 'POST' });
+        const data = await res.json();
+        closeModal('modal-reset-imp');
+        if (data.success) { toast('Todos los archivos eliminados', 'success'); cargarArchivos(); }
+        else toast(data.error || 'Error', 'error');
+    } catch(e) { toast('Error de conexión', 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Sí, eliminar todo'; }
+}
 </script>
 
 <div class="modal-overlay" id="modal-reset-imp">
@@ -424,7 +426,7 @@ document.getElementById('btn-confirmar-reset-imp')?.addEventListener('click', as
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end">
             <button class="btn btn-secondary" onclick="closeModal('modal-reset-imp')">Cancelar</button>
-            <button class="btn btn-danger" id="btn-confirmar-reset-imp">Sí, eliminar todo</button>
+            <button class="btn btn-danger" id="btn-confirmar-reset-imp" onclick="confirmarResetImp()">Sí, eliminar todo</button>
         </div>
     </div>
 </div>
