@@ -37,7 +37,10 @@
       "Bash(sed -i \"s|require_once __DIR__ . '/config.php';|require_once dirname\\(__DIR__\\) . '/config.php';|g\" \"c:/Users/facun/OneDrive/Desktop/bancos/install/facturacion_install.php\")",
       "Bash(sed -i \"s|require_once __DIR__ . '/config.php';|require_once dirname\\(__DIR__\\) . '/config.php';|g\" \"c:/Users/facun/OneDrive/Desktop/bancos/install/fiserv_install.php\")",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\" -Force)",
-      "Bash(Format-Table -AutoSize)"
+      "Bash(Format-Table -AutoSize)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\" -Directory)",
+      "Bash(Select-Object Name)",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\" | Where-Object {$_.PSIsContainer} | ForEach-Object {Write-Host $_.Name})"
     ],
     "additionalDirectories": [
       "C:\\Users\\facun\\.claude\\projects\\c--Users-facun-OneDrive-Desktop-bancos"
