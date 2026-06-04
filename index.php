@@ -28,6 +28,18 @@ $tools = [
         'stats'       => false,
     ],
     [
+        'id'          => 'proveedores',
+        'nombre'      => 'Proveedores Morosos',
+        'descripcion' => 'Cargá el saldo de cuenta corriente de proveedores, identificá a quién hay que pagarle primero y exportá con prioridades y observaciones.',
+        'icono'       => '🏭',
+        'color'       => 'red',
+        'url'         => '/proveedores/index.php',
+        'badge'       => 'Activo',
+        'badge_type'  => 'green',
+        'subtitulo'   => 'Cuentas Corrientes',
+        'stats'       => false,
+    ],
+    [
         'id'          => 'ganancias',
         'nombre'      => 'Ganancias y Balances',
         'descripcion' => 'Armá balances, ganancias y bienes personales por cliente: bancos, proveedores, clientes, rodados, maquinarias y bienes de uso.',
