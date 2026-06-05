@@ -389,9 +389,6 @@ function renderTabla() {
     };
 
     document.getElementById('res-tbody').innerHTML = slice.map(r => {
-        const saldoFmt = r.saldo === 0
-            ? '<span style="color:var(--muted)">$ 0</span>'
-            : `<span style="color:${r.saldo < 0 ? 'var(--red)' : 'var(--green)';font-weight:600}">${fmt(r.saldo)}</span>`;
         return `<tr>
             <td><span class="badge ${r.sistema===1?'badge-blue':'badge-red'}" style="font-size:10px">S${r.sistema}</span></td>
             <td class="mono" style="font-size:11px">${r.codigo || '—'}</td>
