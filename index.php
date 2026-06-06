@@ -16,6 +16,18 @@ $tools = [
         'stats'       => true,
     ],
     [
+        'id'          => 'hip',
+        'nombre'      => 'Banco Hipotecario',
+        'descripcion' => 'Control de movimientos del Banco Hipotecario: importación de extractos, clasificación por categorías y reportes.',
+        'icono'       => '🏠',
+        'color'       => 'purple',
+        'url'         => '/hip/index.php',
+        'badge'       => 'Activo',
+        'badge_type'  => 'green',
+        'subtitulo'   => 'Banco Hipotecario',
+        'stats'       => false,
+    ],
+    [
         'id'          => 'bna',
         'nombre'      => 'Banco Nacion',
         'descripcion' => 'Control de movimientos del Banco Nación: importación de extractos con formato Débito/Crédito, clasificación por categorías y reportes.',
