@@ -83,12 +83,12 @@ require_once __DIR__ . '/includes/header.php';
 <!-- Gráficos fila 2 -->
 <div class="grid-2 mb-24">
     <div class="card">
-        <div class="card-title">Proveedores por rango de saldo</div>
-        <div id="chart-rangos-cant-empty" class="empty-state" style="padding:32px;display:none">
+        <div class="card-title">Distribución por prioridad</div>
+        <div id="chart-prioridades-empty" class="empty-state" style="padding:32px;display:none">
             <div class="empty-state-icon">◈</div>
             <div class="empty-state-text">Sin datos</div>
         </div>
-        <canvas id="chart-rangos-cant" height="240"></canvas>
+        <canvas id="chart-prioridades" height="240"></canvas>
     </div>
     <div class="card">
         <div class="card-title">Monto total por rango de saldo</div>
@@ -149,7 +149,7 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <script>
-let chartBalance = null, chartSistemas = null, chartRangosCant = null, chartRangosMonto = null;
+let chartBalance = null, chartSistemas = null, chartRangosMonto = null;
 
 function waitForChart(cb) {
     if (typeof Chart !== 'undefined') { cb(); return; }
@@ -168,6 +168,7 @@ async function loadDashboard() {
         waitForChart(() => {
             renderBalance(data);
             renderSistemas(data.sistemas);
+            renderPrioridades(data.prioridades);
             renderRangos(data.rangos);
         });
     } catch(e) {
@@ -260,29 +261,70 @@ function renderSistemas(s) {
     });
 }
 
+let chartPrioridades = null;
+
+function renderPrioridades(prioridades) {
+    const PRI_ORDER = ['URGENTE','REVISAR','A COBRAR','DEUDA MENOR','FAVOR MENOR','SIN SALDO'];
+    const PRI_COLORS = {
+        'URGENTE':     'rgba(239,68,68,.8)',
+        'REVISAR':     'rgba(249,115,22,.8)',
+        'A COBRAR':    'rgba(16,185,129,.8)',
+        'DEUDA MENOR': 'rgba(245,158,11,.8)',
+        'FAVOR MENOR': 'rgba(6,182,212,.8)',
+        'SIN SALDO':   'rgba(74,95,122,.5)',
+    };
+    const PRI_BORDER = {
+        'URGENTE':'#ef4444','REVISAR':'#f97316','A COBRAR':'#10b981',
+        'DEUDA MENOR':'#f59e0b','FAVOR MENOR':'#06b6d4','SIN SALDO':'#4a5f7a',
+    };
+
+    const hasData = prioridades && Object.keys(prioridades).some(k => prioridades[k].cant > 0);
+    document.getElementById('chart-prioridades-empty').style.display = hasData ? 'none' : 'block';
+    document.getElementById('chart-prioridades').style.display        = hasData ? 'block' : 'none';
+    if (!hasData) return;
+
+    const labels = PRI_ORDER.filter(k => prioridades[k]?.cant > 0);
+    const counts = labels.map(k => prioridades[k].cant);
+    const colors = labels.map(k => PRI_COLORS[k]);
+    const borders= labels.map(k => PRI_BORDER[k]);
+
+    if (chartPrioridades) chartPrioridades.destroy();
+    chartPrioridades = new Chart(document.getElementById('chart-prioridades'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Proveedores',
+                data: counts,
+                backgroundColor: colors,
+                borderColor: borders,
+                borderWidth: 1, borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true, indexAxis: 'y',
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.x + ' proveedores — $' +
+                    Intl.NumberFormat('es-AR',{notation:'compact',maximumFractionDigits:1})
+                        .format(prioridades[ctx.label]?.monto || 0) } }
+            },
+            scales: {
+                x: { ticks:{ color:'#4a5f7a', stepSize:1 }, grid:{ color:'#1e2d45' } },
+                y: { ticks:{ color:'#7a90b0', font:{size:12} }, grid:{ color:'transparent' } }
+            }
+        }
+    });
+}
+
 function renderRangos(rangos) {
     const noData = !rangos?.length || rangos.every(r => r.cant === 0);
 
-    document.getElementById('chart-rangos-cant-empty').style.display = noData ? 'block' : 'none';
-    document.getElementById('chart-rangos-cant').style.display        = noData ? 'none'  : 'block';
     document.getElementById('chart-rangos-monto-empty').style.display = noData ? 'block' : 'none';
     document.getElementById('chart-rangos-monto').style.display        = noData ? 'none'  : 'block';
     if (noData) return;
 
-    const labels   = rangos.map(r => r.label);
     const moneyFmt = v => '$' + Intl.NumberFormat('es-AR', { notation:'compact', maximumFractionDigits:1 }).format(v);
-
-    if (chartRangosCant) chartRangosCant.destroy();
-    chartRangosCant = new Chart(document.getElementById('chart-rangos-cant'), {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{ label:'Proveedores', data: rangos.map(r => r.cant),
-                backgroundColor:'rgba(239,68,68,.75)', borderColor:'#ef4444', borderWidth:1, borderRadius:6 }]
-        },
-        options: { responsive:true, plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y+' proveedores'}} },
-            scales:{ x:{ticks:{color:'#4a5f7a',font:{size:11}},grid:{color:'#1e2d45'}}, y:{ticks:{color:'#4a5f7a',stepSize:1},grid:{color:'#1e2d45'}} } }
-    });
 
     if (chartRangosMonto) chartRangosMonto.destroy();
     chartRangosMonto = new Chart(document.getElementById('chart-rangos-monto'), {

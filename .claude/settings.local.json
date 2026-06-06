@@ -40,7 +40,15 @@
       "Bash(Format-Table -AutoSize)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\" -Directory)",
       "Bash(Select-Object Name)",
-      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\" | Where-Object {$_.PSIsContainer} | ForEach-Object {Write-Host $_.Name})"
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\" | Where-Object {$_.PSIsContainer} | ForEach-Object {Write-Host $_.Name})",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(ls \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\\\\\" | grep -i install)",
+      "Read(//c/Users/facun/OneDrive/Desktop/**)",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\\\\fiserv\\\\api\\\\\" -ErrorAction SilentlyContinue | Select-Object Name, @{N='Size';E={if\\($_.PSIsContainer\\){'<DIR>'}else{$_.Length}}} | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\\\\fiserv\\\\\" -ErrorAction SilentlyContinue | Select-Object Name, @{N='Size';E={if\\($_.PSIsContainer\\){'<DIR>'}else{$_.Length}}} | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\facun\\\\OneDrive\\\\Desktop\\\\bancos\\\\cobranza\\\\api\\\\\" -ErrorAction SilentlyContinue | Select-Object Name, @{N='Size';E={if\\($_.PSIsContainer\\){'<DIR>'}else{$_.Length}}} | Format-Table -AutoSize)"
     ],
     "additionalDirectories": [
       "C:\\Users\\facun\\.claude\\projects\\c--Users-facun-OneDrive-Desktop-bancos"

@@ -213,7 +213,7 @@ function mapColumns(headerRow) {
     headerRow.forEach((cell, idx) => {
         const h = String(cell).trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
         if (/^sistema/.test(h))             map.sistema = idx;
-        else if (/^c[oo]digo|^cod/.test(h)) map.codigo  = idx;
+        else if (/^c[oó]digo|^cod/.test(h)) map.codigo  = idx;
         else if (/^nombre/.test(h))         map.nombre  = idx;
         else if (/saldo/.test(h))           map.saldo   = idx;
     });
@@ -393,7 +393,7 @@ function renderTabla() {
             <td><span class="badge ${r.sistema===1?'badge-blue':'badge-red'}" style="font-size:10px">S${r.sistema}</span></td>
             <td class="mono" style="font-size:11px">${r.codigo || '—'}</td>
             <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.nombre)}">${escHtml(r.nombre)}</td>
-            <td class="mono" style="text-align:right;font-weight:600;color:${r.saldo<0?'var(--red)':'var(--green)'}">${fmt(r.saldo)}</td>
+            <td class="mono" style="text-align:right;font-weight:600;color:${r.saldo<0?'var(--red)':r.saldo>0?'var(--green)':'var(--muted)'}">${fmt(r.saldo)}</td>
             <td class="${priClass[r.prioridad]||''}" style="white-space:nowrap">${r.prioridad}</td>
             <td style="font-size:11px;color:var(--sub);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.observacion)}">${r.observacion || '—'}</td>
         </tr>`;

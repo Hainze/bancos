@@ -20,7 +20,54 @@ $liquidaciones  = $data['liquidaciones'];
 $archivo_nombre = $data['archivo_nombre'] ?? 'desconocido.pdf';
 
 try {
-    $pdo    = getDB();
+    $pdo = getDB();
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS fiserv_lotes (
+        id               INT AUTO_INCREMENT PRIMARY KEY,
+        codigo           VARCHAR(50)  NOT NULL UNIQUE,
+        archivo_nombre   VARCHAR(200) DEFAULT NULL,
+        tarjeta          VARCHAR(80)  DEFAULT NULL,
+        periodo          VARCHAR(30)  DEFAULT NULL,
+        nro_comercio     VARCHAR(50)  DEFAULT NULL,
+        total_presentado DECIMAL(15,2) NOT NULL DEFAULT 0,
+        neto_pagos       DECIMAL(15,2) NOT NULL DEFAULT 0,
+        total_filas      INT NOT NULL DEFAULT 0,
+        created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS fiserv_liquidaciones (
+        id                 INT AUTO_INCREMENT PRIMARY KEY,
+        lote_id            INT NOT NULL,
+        nro_liq            VARCHAR(20)   NOT NULL DEFAULT '',
+        fecha_pago         DATE          NULL,
+        fecha_pres         DATE          NULL,
+        ventas_contado     DECIMAL(15,2) NOT NULL DEFAULT 0,
+        arancel            DECIMAL(15,2) NOT NULL DEFAULT 0,
+        iva_arancel        DECIMAL(15,2) NOT NULL DEFAULT 0,
+        arancel_cuotas     DECIMAL(15,2) NOT NULL DEFAULT 0,
+        iva_arancel_cuotas DECIMAL(15,2) NOT NULL DEFAULT 0,
+        promo_cuota_ahora  DECIMAL(15,2) NOT NULL DEFAULT 0,
+        dto_financ_cuotas  DECIMAL(15,2) NOT NULL DEFAULT 0,
+        iva_ri_dto_financ  DECIMAL(15,2) NOT NULL DEFAULT 0,
+        dto_ventas_fin_adq DECIMAL(15,2) NOT NULL DEFAULT 0,
+        per_bai_brdn       DECIMAL(15,2) NOT NULL DEFAULT 0,
+        ret_iibb_sirtac    DECIMAL(15,2) NOT NULL DEFAULT 0,
+        iva_promo_cuota    DECIMAL(15,2) NOT NULL DEFAULT 0,
+        iva_dto_fin_adq    DECIMAL(15,2) NOT NULL DEFAULT 0,
+        perc_iva_1_5       DECIMAL(15,2) NOT NULL DEFAULT 0,
+        perc_iva_3         DECIMAL(15,2) NOT NULL DEFAULT 0,
+        cargo_terminal     DECIMAL(15,2) NOT NULL DEFAULT 0,
+        cargo_sist_cuotas  DECIMAL(15,2) NOT NULL DEFAULT 0,
+        iva_ri_sist_cuotas DECIMAL(15,2) NOT NULL DEFAULT 0,
+        qr_perc_iva        DECIMAL(15,2) NOT NULL DEFAULT 0,
+        qr_ret_iibb        DECIMAL(15,2) NOT NULL DEFAULT 0,
+        total_descuentos   DECIMAL(15,2) NOT NULL DEFAULT 0,
+        acreditado         DECIMAL(15,2) NOT NULL DEFAULT 0,
+        created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_lote (lote_id),
+        INDEX idx_fecha_pago (fecha_pago)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
     $codigo = 'FSV-' . strtoupper(substr(md5($archivo_nombre . microtime()), 0, 8));
 
     $pdo->prepare("

@@ -13,6 +13,15 @@ try {
     exit;
 }
 
+$pdo->exec("CREATE TABLE IF NOT EXISTS cobranza_padrones (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    sistema     TINYINT(1) NOT NULL,
+    codigo      VARCHAR(50) NOT NULL,
+    observacion VARCHAR(255) NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_sistema_codigo (sistema, codigo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
 try {
 
 switch ($action) {

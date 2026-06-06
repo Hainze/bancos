@@ -13,6 +13,30 @@ try {
     exit;
 }
 
+$pdo->exec("CREATE TABLE IF NOT EXISTS cobranza_lotes (
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    archivo_nombre VARCHAR(255) NOT NULL,
+    total_clientes INT DEFAULT 0,
+    total_importe  DECIMAL(15,2) DEFAULT 0,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+$pdo->exec("CREATE TABLE IF NOT EXISTS cobranza_cartera (
+    id       INT AUTO_INCREMENT PRIMARY KEY,
+    lote_id  INT NOT NULL,
+    sistema  TINYINT(1) NOT NULL,
+    codigo   VARCHAR(50) NOT NULL,
+    nombre   VARCHAR(255) NOT NULL,
+    d30      DECIMAL(15,2) DEFAULT 0,
+    d60      DECIMAL(15,2) DEFAULT 0,
+    d90      DECIMAL(15,2) DEFAULT 0,
+    d120     DECIMAL(15,2) DEFAULT 0,
+    d120plus DECIMAL(15,2) DEFAULT 0,
+    total    DECIMAL(15,2) DEFAULT 0,
+    INDEX idx_lote (lote_id),
+    INDEX idx_sistema_codigo (sistema, codigo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
 try {
 
 switch ($action) {
