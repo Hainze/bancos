@@ -130,9 +130,10 @@ document.getElementById('btn-limpiar').addEventListener('click', () => {
 
 async function previewCols(file) {
     try {
-        const rows = await readExcel(file);
-        if (!rows.length) return;
-        const map = detectColumns(rows[0]);
+        const raw = await readExcel(file);
+        if (!raw.length) return;
+        const { headers } = parseEcheqRows(raw);
+        const map = detectColumns(headers);
         const detected = Object.entries(map).filter(([k,v]) => v >= 0).map(([k]) => k);
         document.getElementById('cols-lista').textContent = ' ' + detected.join(', ');
         document.getElementById('cols-detectadas').style.display = 'block';
@@ -154,6 +155,79 @@ function readExcel(file) {
         reader.onerror = reject;
         reader.readAsArrayBuffer(file);
     });
+}
+
+// ── Parser multi-fila (formato banco: importe y estado en filas separadas) ──
+function parseEcheqRows(raw) {
+    if (!raw.length) return { headers: [], rows: [] };
+
+    // Buscar fila de encabezados en las primeras 5 filas
+    let headerIdx = 0;
+    for (let i = 0; i < Math.min(raw.length, 5); i++) {
+        if (raw[i].some(c => /echeq|nro|emisor|importe/i.test(String(c)))) {
+            headerIdx = i; break;
+        }
+    }
+
+    const headers = raw[headerIdx].map(String);
+    const importeIdx = headers.findIndex(h => /importe|monto/i.test(h));
+    const estadoIdx  = headers.findIndex(h => /^estado$/i.test(h));
+    const dataStart  = headerIdx + 1;
+
+    // Detectar formato: ¿tiene el importe en su propia columna?
+    const firstData = raw.slice(dataStart).find(r => r.some(c => c !== '' && c !== null && c !== undefined));
+    if (firstData && importeIdx >= 0 && firstData[importeIdx] !== '' && firstData[importeIdx] !== null) {
+        // Formato estándar: una fila por echeq
+        return { headers, rows: raw.slice(dataStart).filter(r => r.some(c => c !== '' && c !== null)) };
+    }
+
+    // Formato multi-fila: importe y estado vienen en filas adicionales (solo en col[0])
+    const rows = [];
+    let i = dataStart;
+
+    while (i < raw.length) {
+        const row = raw[i];
+        if (!row || row.every(c => c === '' || c === null || c === undefined)) { i++; continue; }
+
+        const col0 = String(row[0] || '').trim();
+
+        // La fila principal empieza con el número de echeq (solo dígitos, 4+)
+        if (!/^\d{4,}$/.test(col0)) { i++; continue; }
+
+        const mainRow = row.map(c => (c === null || c === undefined) ? '' : c);
+        i++;
+
+        let importe = '';
+        let estado  = '';
+
+        // Recoger filas de continuación hasta fila vacía o nuevo echeq
+        while (i < raw.length) {
+            const next = raw[i];
+            if (!next || next.every(c => c === '' || c === null || c === undefined)) break;
+
+            const v0 = String(next[0] || '').trim();
+            if (/^\d{4,}$/.test(v0)) break; // nuevo echeq
+
+            // Si hay 2+ columnas con datos reales → nueva fila principal
+            const extraFilled = next.slice(1).filter(c => c !== '' && c !== null && c !== undefined && c !== '-').length;
+            if (extraFilled >= 2) break;
+
+            if (!importe && /\$|^\d[\d.,]{3,}/.test(v0.replace(/\s/g, ''))) {
+                importe = v0;
+            } else if (!estado && v0) {
+                estado = v0;
+            }
+            i++;
+        }
+
+        const merged = [...mainRow];
+        if (importeIdx >= 0 && merged[importeIdx] === '') merged[importeIdx] = importe;
+        if (estadoIdx  >= 0 && merged[estadoIdx]  === '') merged[estadoIdx]  = estado;
+
+        rows.push(merged);
+    }
+
+    return { headers, rows };
 }
 
 // ── Detectar columnas ─────────────────────────────────────
@@ -180,12 +254,6 @@ function detectColumns(headerRow) {
 }
 
 function norm(s) {
-    return (iconv ? iconv(s) : s.toLowerCase())
-        .normalize('NFD').replace(/[̀-ͯ]/g,'')
-        .replace(/[^a-z0-9 ]/g,' ').trim();
-}
-// Fallback normalizer (sin iconv en browser)
-function norm(s) {
     return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').trim();
 }
 
@@ -202,7 +270,8 @@ document.getElementById('btn-analizar').addEventListener('click', async () => {
         const raw = await readExcel(f);
         if (!raw.length) { toast('El archivo está vacío', 'error'); return; }
 
-        origHeaders = raw[0].map(String);
+        const { headers, rows } = parseEcheqRows(raw);
+        origHeaders = headers;
         colMap      = detectColumns(origHeaders);
 
         if (colMap.monto < 0 && colMap.fecha_venc < 0) {
@@ -211,7 +280,7 @@ document.getElementById('btn-analizar').addEventListener('click', async () => {
 
         const today = new Date(); today.setHours(0,0,0,0);
 
-        allRows = raw.slice(1)
+        allRows = rows
             .filter(r => r.some(c => c !== '' && c !== null))
             .map(r => {
                 const obj = {};
