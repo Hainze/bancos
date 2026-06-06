@@ -16,6 +16,18 @@ $tools = [
         'stats'       => true,
     ],
     [
+        'id'          => 'echeqs',
+        'nombre'      => 'Echeqs',
+        'descripcion' => 'Subí un listado de echeqs y el sistema te devuelve un Excel con análisis: cuáles vencen pronto, cuáles hay que endosar, cuáles ya están endosados o depositados.',
+        'icono'       => '🧾',
+        'color'       => 'purple',
+        'url'         => '/echeqs/index.php',
+        'badge'       => 'Activo',
+        'badge_type'  => 'green',
+        'subtitulo'   => 'Análisis de cheques electrónicos',
+        'stats'       => false,
+    ],
+    [
         'id'          => 'credicoop',
         'nombre'      => 'Banco Credicoop',
         'descripcion' => 'Control de movimientos del Banco Credicoop: importación de extractos, clasificación por categorías y reportes.',
