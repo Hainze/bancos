@@ -538,14 +538,18 @@ function parseFechaEcheq(v) {
     // dd/mm/yyyy
     const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (m1) return new Date(+m1[3], +m1[2]-1, +m1[1]);
+    // dd/mm/yy — año 2 dígitos, formato argentino (siempre DD/MM)
+    const m4 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+    if (m4) { const yr = +m4[3] + (+m4[3] < 50 ? 2000 : 1900); return new Date(yr, +m4[2]-1, +m4[1]); }
     // yyyy-mm-dd
     const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (m2) return new Date(+m2[1], +m2[2]-1, +m2[3]);
     // dd-mm-yyyy
     const m3 = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
     if (m3) return new Date(+m3[3], +m3[2]-1, +m3[1]);
-    const ts = Date.parse(s);
-    if (!isNaN(ts)) { const d = new Date(ts); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+    // yyyy-mm-dd con hora (ISO parcial)
+    const m5 = s.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+    if (m5) return new Date(+m5[1], +m5[2]-1, +m5[3]);
     return null;
 }
 
