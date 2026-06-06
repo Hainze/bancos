@@ -16,6 +16,18 @@ $tools = [
         'stats'       => true,
     ],
     [
+        'id'          => 'credicoop',
+        'nombre'      => 'Banco Credicoop',
+        'descripcion' => 'Control de movimientos del Banco Credicoop: importación de extractos, clasificación por categorías y reportes.',
+        'icono'       => '🤝',
+        'color'       => 'green',
+        'url'         => '/credicoop/index.php',
+        'badge'       => 'Activo',
+        'badge_type'  => 'green',
+        'subtitulo'   => 'Banco Credicoop Coop. Ltdo.',
+        'stats'       => false,
+    ],
+    [
         'id'          => 'hip',
         'nombre'      => 'Banco Hipotecario',
         'descripcion' => 'Control de movimientos del Banco Hipotecario: importación de extractos, clasificación por categorías y reportes.',
