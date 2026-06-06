@@ -40,6 +40,18 @@ $tools = [
         'stats'       => false,
     ],
     [
+        'id'          => 'vencimientos',
+        'nombre'      => 'Vencimientos',
+        'descripcion' => 'Gestioná vencimientos fiscales (IVA, IIBB, Ganancias) y de servicios (luz, gas, teléfono). Guardá credenciales de acceso por cuenta y generá recordatorios.',
+        'icono'       => '📅',
+        'color'       => 'blue',
+        'url'         => '/vencimientos/index.php',
+        'badge'       => 'Activo',
+        'badge_type'  => 'green',
+        'subtitulo'   => 'Fiscal · Servicios',
+        'stats'       => false,
+    ],
+    [
         'id'          => 'ganancias',
         'nombre'      => 'Ganancias y Balances',
         'descripcion' => 'Armá balances, ganancias y bienes personales por cliente: bancos, proveedores, clientes, rodados, maquinarias y bienes de uso.',
