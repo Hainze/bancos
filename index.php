@@ -5,8 +5,8 @@ $user = currentUser();
 $tools = [
     [
         'id'          => 'bancos',
-        'nombre'      => 'Gestión Bancaria',
-        'descripcion' => 'Control de movimientos bancarios, importación de extractos, clasificación por categorías y reportes.',
+        'nombre'      => 'Banco Provincia',
+        'descripcion' => 'Control de movimientos del Banco Provincia: importación de extractos, clasificación por categorías y reportes.',
         'icono'       => '🏦',
         'color'       => 'blue',
         'url'         => '/bancos/index.php',
@@ -14,6 +14,18 @@ $tools = [
         'badge_type'  => 'green',
         'subtitulo'   => 'Banco Provincia',
         'stats'       => true,
+    ],
+    [
+        'id'          => 'bna',
+        'nombre'      => 'Banco Nacion',
+        'descripcion' => 'Control de movimientos del Banco Nación: importación de extractos con formato Débito/Crédito, clasificación por categorías y reportes.',
+        'icono'       => '🏛️',
+        'color'       => 'amber',
+        'url'         => '/bna/index.php',
+        'badge'       => 'Activo',
+        'badge_type'  => 'green',
+        'subtitulo'   => 'Banco Nación Argentina',
+        'stats'       => false,
     ],
     [
         'id'          => 'iva',
