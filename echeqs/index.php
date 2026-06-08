@@ -327,6 +327,29 @@ document.getElementById('btn-analizar').addEventListener('click', async () => {
         renderResultado();
         toast(`${allRows.length} echeqs analizados`, 'success');
 
+        // Guardar resumen en historial (falla silenciosa)
+        try {
+            const conteos = {};
+            allRows.forEach(r => { conteos[r._accion] = (conteos[r._accion] || 0) + 1; });
+            fetch('/echeqs/api/lotes.php?action=guardar_lote', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    archivo_nombre:   f.name,
+                    total_echeqs:     allRows.length,
+                    total_monto:      allRows.reduce((s, r) => s + (r._monto || 0), 0),
+                    cant_vencidos:    (conteos['VENCIDO'] || 0) + (conteos['VENCE HOY'] || 0),
+                    cant_endosar_ya:  conteos['ENDOSAR YA'] || 0,
+                    cant_proximos:    conteos['PRÓXIMO'] || 0,
+                    cant_pendientes:  conteos['PENDIENTE'] || 0,
+                    cant_endosados:   conteos['ENDOSADO'] || 0,
+                    cant_depositados: conteos['DEPOSITADO'] || 0,
+                    cant_rechazados:  conteos['RECHAZADO'] || 0,
+                    cant_sin_fecha:   conteos['SIN FECHA'] || 0,
+                }),
+            });
+        } catch(e) { /* historial no disponible */ }
+
     } catch(e) {
         toast('Error al procesar: ' + e.message, 'error');
         console.error(e);

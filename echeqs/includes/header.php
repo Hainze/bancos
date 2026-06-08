@@ -14,6 +14,7 @@ $nombre_corto = explode(' ', $user['nombre'] ?? 'Usuario')[0];
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/app.css">
     <script src="/assets/js/app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js" defer></script>
 </head>
 <body>
@@ -34,6 +35,10 @@ $nombre_corto = explode(' ', $user['nombre'] ?? 'Usuario')[0];
 
         <nav class="sidebar-nav">
             <div class="nav-section-label">Principal</div>
+            <a href="/echeqs/dashboard.php" class="nav-item <?= $pagina_actual === 'dashboard' ? 'active' : '' ?>">
+                <span class="nav-icon">◈</span>
+                <span>Dashboard</span>
+            </a>
             <a href="/echeqs/index.php" class="nav-item <?= $pagina_actual === 'index' ? 'active' : '' ?>">
                 <span class="nav-icon">🧾</span>
                 <span>Analizar Echeqs</span>
