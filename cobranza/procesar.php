@@ -215,11 +215,12 @@ function parseNum(v) {
 }
 
 function parseSistema(v) {
-    // Acepta: 2, "2", 2.0, "Sistema 2", "negro", cualquier cosa que empiece con 2
     const n = parseFloat(v);
     if (n === 2) return 2;
+    if (n === 3) return 3;
     const s = String(v).trim().toLowerCase();
     if (s.startsWith('2') || s === 'sistema 2' || s === 'negro') return 2;
+    if (s.startsWith('3') || s === 'sistema 3' || s === 'giles') return 3;
     return 1;
 }
 
