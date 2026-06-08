@@ -64,6 +64,18 @@ $tools = [
         'stats'       => true,
     ],
     [
+        'id'          => 'sociedades',
+        'nombre'      => 'Sociedades',
+        'descripcion' => 'Seguimiento de balances y presentaciones por sociedad. Tildá cada tarea completada por ejercicio: reunión de información, balance, ganancias, actas y más.',
+        'icono'       => '🏢',
+        'color'       => 'purple',
+        'url'         => '/sociedades/index.php',
+        'badge'       => 'Activo',
+        'badge_type'  => 'green',
+        'subtitulo'   => 'Balances · SRL · SA',
+        'stats'       => false,
+    ],
+    [
         'id'          => 'cobranza',
         'nombre'      => 'Cobranza',
         'descripcion' => 'Cargá la cartera de deudores desde Excel, visualizá la deuda por antigüedad y sistema, priorizá clientes automáticamente y exportá con observaciones.',
