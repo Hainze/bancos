@@ -105,14 +105,17 @@ switch ($action) {
         ");
         $sis->execute([$lote_id]);
         $sisRows   = $sis->fetchAll();
-        $sistemas  = ['sis1_cant' => 0, 'sis1_monto' => 0, 'sis2_cant' => 0, 'sis2_monto' => 0];
+        $sistemas  = ['sis1_cant' => 0, 'sis1_monto' => 0, 'sis2_cant' => 0, 'sis2_monto' => 0, 'sis3_cant' => 0, 'sis3_monto' => 0];
         foreach ($sisRows as $s) {
             if ($s['sistema'] == 1) {
                 $sistemas['sis1_cant']  = (int)$s['cant'];
                 $sistemas['sis1_monto'] = (float)$s['monto'];
-            } else {
+            } elseif ($s['sistema'] == 2) {
                 $sistemas['sis2_cant']  = (int)$s['cant'];
                 $sistemas['sis2_monto'] = (float)$s['monto'];
+            } else {
+                $sistemas['sis3_cant']  = (int)$s['cant'];
+                $sistemas['sis3_monto'] = (float)$s['monto'];
             }
         }
 

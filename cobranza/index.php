@@ -34,21 +34,26 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <!-- Total general -->
-<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-top:0">
+<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-top:0">
     <div class="stat-card green">
         <div class="stat-label">Total deuda activa</div>
         <div class="stat-value green" id="stat-total">—</div>
         <div class="stat-sub" id="sub-total">— clientes con saldo positivo</div>
     </div>
     <div class="stat-card" style="border-color:rgba(37,99,235,.3)">
-        <div class="stat-label">Sistema 1 (blanco)</div>
+        <div class="stat-label">Sistema 1 — Blanco</div>
         <div class="stat-value" id="stat-sis1">—</div>
         <div class="stat-sub" id="sub-sis1">—</div>
     </div>
     <div class="stat-card" style="border-color:rgba(239,68,68,.3)">
-        <div class="stat-label">Sistema 2 (negro)</div>
+        <div class="stat-label">Sistema 2 — Negro</div>
         <div class="stat-value red" id="stat-sis2">—</div>
         <div class="stat-sub" id="sub-sis2">—</div>
+    </div>
+    <div class="stat-card" style="border-color:rgba(16,185,129,.3)">
+        <div class="stat-label">Sistema 3 — Giles</div>
+        <div class="stat-value" style="color:#10b981" id="stat-sis3">—</div>
+        <div class="stat-sub" id="sub-sis3">—</div>
     </div>
 </div>
 
@@ -63,7 +68,7 @@ require_once __DIR__ . '/includes/header.php';
         <canvas id="chart-aging" height="240"></canvas>
     </div>
     <div class="card">
-        <div class="card-title">Sistema 1 vs Sistema 2</div>
+        <div class="card-title">Distribución por Sistema</div>
         <div id="chart-sistemas-empty" class="empty-state" style="padding:32px;display:none">
             <div class="empty-state-icon">◈</div>
             <div class="empty-state-text">Sin datos</div>
@@ -187,6 +192,8 @@ function renderCards(data) {
     document.getElementById('sub-sis1').textContent  = (s.sis1_cant || 0) + ' clientes';
     document.getElementById('stat-sis2').textContent = formatMoney(parseFloat(s.sis2_monto || 0));
     document.getElementById('sub-sis2').textContent  = (s.sis2_cant || 0) + ' clientes';
+    document.getElementById('stat-sis3').textContent = formatMoney(parseFloat(s.sis3_monto || 0));
+    document.getElementById('sub-sis3').textContent  = (s.sis3_cant || 0) + ' clientes';
 }
 
 function renderAging(aging) {
@@ -229,7 +236,7 @@ function renderAging(aging) {
 
 function renderSistemas(s) {
     if (!s) return;
-    const vals = [parseFloat(s.sis1_monto||0), parseFloat(s.sis2_monto||0)];
+    const vals = [parseFloat(s.sis1_monto||0), parseFloat(s.sis2_monto||0), parseFloat(s.sis3_monto||0)];
     const hasData = vals.some(v => v > 0);
 
     document.getElementById('chart-sistemas-empty').style.display = hasData ? 'none' : 'block';
@@ -240,11 +247,11 @@ function renderSistemas(s) {
     chartSistemas = new Chart(document.getElementById('chart-sistemas'), {
         type: 'doughnut',
         data: {
-            labels: ['Sistema 1 (blanco)','Sistema 2 (negro)'],
+            labels: ['Sistema 1 — Blanco','Sistema 2 — Negro','Sistema 3 — Giles'],
             datasets: [{
                 data: vals,
-                backgroundColor: ['rgba(37,99,235,.75)','rgba(239,68,68,.75)'],
-                borderColor: ['#2563eb','#ef4444'],
+                backgroundColor: ['rgba(37,99,235,.75)','rgba(239,68,68,.75)','rgba(16,185,129,.75)'],
+                borderColor: ['#2563eb','#ef4444','#10b981'],
                 borderWidth: 2, hoverOffset: 8,
             }]
         },
