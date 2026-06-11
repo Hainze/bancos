@@ -64,6 +64,18 @@ $tools = [
         'stats'       => true,
     ],
     [
+        'id'          => 'separacion',
+        'nombre'      => 'Separación',
+        'descripcion' => 'Subí un Excel con columna Comprobante (ej: FAC A0007-00060132) y el sistema la separa automáticamente en Tipo, Punto de venta y Número de factura.',
+        'icono'       => '✂',
+        'color'       => 'amber',
+        'url'         => '/separacion/index.php',
+        'badge'       => 'Activo',
+        'badge_type'  => 'green',
+        'subtitulo'   => 'Tipo · Punto · Factura',
+        'stats'       => false,
+    ],
+    [
         'id'          => 'sociedades',
         'nombre'      => 'Sociedades',
         'descripcion' => 'Seguimiento de balances y presentaciones por sociedad. Tildá cada tarea completada por ejercicio: reunión de información, balance, ganancias, actas y más.',
