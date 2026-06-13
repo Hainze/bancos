@@ -23,6 +23,7 @@ require_once __DIR__ . '/includes/header.php';
                 <option value="">Todos</option>
                 <option value="1">Sistema 1 (blanco)</option>
                 <option value="2">Sistema 2 (negro)</option>
+                <option value="3">Sistema 3 (Giles)</option>
             </select>
         </div>
         <div class="filter-field" style="flex:1">
@@ -67,6 +68,7 @@ require_once __DIR__ . '/includes/header.php';
                 <select class="form-control" id="padron-sistema">
                     <option value="1">Sistema 1 (blanco)</option>
                     <option value="2">Sistema 2 (negro)</option>
+                    <option value="3">Sistema 3 (Giles)</option>
                 </select>
             </div>
             <div class="form-group">
@@ -159,7 +161,7 @@ async function loadPadrones(page = 1) {
     }
 
     tbody.innerHTML = data.data.map(p => `<tr>
-        <td><span class="badge ${p.sistema==1?'badge-blue':'badge-red'}">${p.sistema==1?'Sistema 1':'Sistema 2'}</span></td>
+        <td><span class="badge ${p.sistema==1?'badge-blue':p.sistema==2?'badge-red':'badge-green'}">${p.sistema==1?'Sistema 1 (blanco)':p.sistema==2?'Sistema 2 (negro)':'Sistema 3 (Giles)'}</span></td>
         <td class="mono">${p.codigo}</td>
         <td style="max-width:280px">${escHtml(p.observacion)}</td>
         <td class="mono" style="font-size:11px">${new Date(p.created_at).toLocaleDateString('es-AR')}</td>
@@ -257,7 +259,8 @@ initDropZone('upload-import', async file => {
             const cod = String(row[iCod] ?? '').trim();
             const obs = String(row[iObs] ?? '').trim();
             if (!cod || !obs) continue;
-            const sis = String(row[iSis] ?? '').includes('2') ? 2 : 1;
+            const sisVal = String(row[iSis] ?? '').trim();
+            const sis = sisVal.includes('3') ? 3 : sisVal.includes('2') ? 2 : 1;
             importData.push({ sistema: sis, codigo: cod, observacion: obs });
         }
 

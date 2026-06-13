@@ -216,6 +216,15 @@ switch ($action) {
         echo json_encode(['success' => true, 'creados' => $creados]);
         break;
 
+    // ── Alertas para el hub (sin filtro de cliente) ───────────────────────────
+    case 'alertas_hub':
+        $hoy = date('Y-m-d');
+        $en7 = date('Y-m-d', strtotime('+7 days'));
+        $vencidos = (int)$pdo->query("SELECT COUNT(*) FROM venc_items WHERE estado='pendiente' AND fecha_venc < '$hoy'")->fetchColumn();
+        $proximos = (int)$pdo->query("SELECT COUNT(*) FROM venc_items WHERE estado='pendiente' AND fecha_venc BETWEEN '$hoy' AND '$en7'")->fetchColumn();
+        echo json_encode(['vencidos' => $vencidos, 'proximos' => $proximos]);
+        break;
+
     default:
         echo json_encode(['error' => 'Acción no válida']);
 }

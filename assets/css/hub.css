@@ -562,6 +562,67 @@ body::before {
 
 .footer-dot { color: var(--border); }
 
+/* ── GROUP SECTIONS ── */
+.group-section { margin-bottom: 48px; }
+
+.group-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.group-header-icon { font-size: 15px; }
+
+.group-header-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+}
+
+.group-count {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--border);
+    font-family: 'Space Mono', monospace;
+}
+
+/* ── ALERT BADGE ── */
+.tool-alert-badge {
+    display: none;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: 'Space Mono', monospace;
+    white-space: nowrap;
+    animation: pulse-alert 2s ease-in-out infinite;
+}
+.tool-alert-badge.visible { display: inline-flex; }
+.tool-alert-badge.danger  { background: var(--rdim); color: var(--red);   border: 1px solid rgba(239,68,68,.3); }
+.tool-alert-badge.warning { background: var(--adim); color: var(--amber); border: 1px solid rgba(245,158,11,.3); }
+
+@keyframes pulse-alert {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.55; }
+}
+
+/* ── FEATURED CARD ── */
+.tool-card.featured {
+    border-color: rgba(139,92,246,.35);
+    background: linear-gradient(135deg, var(--card) 60%, rgba(139,92,246,.05));
+}
+.color-purple.tool-active.featured:hover { border-color: var(--purple); box-shadow: 0 20px 48px rgba(139,92,246,.2); }
+
+/* ── HIDDEN ── */
+.tool-card.card-hidden { display: none; }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 1024px) {
     .tools-grid { grid-template-columns: repeat(2, 1fr); }
