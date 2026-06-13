@@ -623,6 +623,28 @@ body::before {
 /* ── HIDDEN ── */
 .tool-card.card-hidden { display: none; }
 
+/* ── BOTÓN GUÍAS ── */
+.btn-pasos {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--sub);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all .18s;
+    white-space: nowrap;
+}
+.btn-pasos:hover {
+    border-color: var(--purple);
+    color: var(--purple);
+    background: var(--pdim);
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 1024px) {
     .tools-grid { grid-template-columns: repeat(2, 1fr); }

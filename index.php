@@ -298,10 +298,13 @@ $totalActivos = count(array_filter($tools, fn($t) => $t['badge_type'] === 'green
 
     <div class="section-header">
         <h2 class="section-title">Herramientas disponibles</h2>
-        <div class="section-filters">
-            <button class="filter-pill active" data-filter="all">Todas</button>
-            <button class="filter-pill" data-filter="active">Activas</button>
-            <button class="filter-pill" data-filter="soon">Próximamente</button>
+        <div style="display:flex;align-items:center;gap:12px">
+            <a href="/pasos/index.php" class="btn-pasos">📖 Guías</a>
+            <div class="section-filters">
+                <button class="filter-pill active" data-filter="all">Todas</button>
+                <button class="filter-pill" data-filter="active">Activas</button>
+                <button class="filter-pill" data-filter="soon">Próximamente</button>
+            </div>
         </div>
     </div>
 
