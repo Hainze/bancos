@@ -71,7 +71,12 @@ $mesesNombres = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Ag
 
         <!-- Tabla de documentos -->
         <div class="card">
-            <div class="card-title" id="tbl-mensual-titulo">Documentos</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <div class="card-title" style="margin:0" id="tbl-mensual-titulo">Documentos</div>
+                <button class="btn btn-secondary" id="btn-exportar-excel" style="display:none" onclick="exportarExcel()">
+                    ⬇ Exportar Excel
+                </button>
+            </div>
             <div class="table-wrap">
                 <table>
                     <thead>
@@ -205,6 +210,8 @@ $mesesNombres = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Ag
     </div>
 </div>
 
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
 <style>
 .form-label { display:block; font-size:12px; color:var(--text-secondary); margin-bottom:5px; font-weight:500; }
 .form-input  { background:var(--bg-hover); border:1px solid var(--border); color:var(--text-primary);
@@ -231,6 +238,9 @@ select.form-input option { background:var(--bg-card); }
 <script>
 const CLIENTE_ID    = <?= $clienteId ?>;
 const MESES_NOMBRES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+let lastDocs = [];
+let lastMeta = {};
 
 // ── Tab switch ────────────────────────────────────────────────────────────
 function switchTab(tab) {
@@ -318,6 +328,10 @@ function renderMensual(data, tipo, mes, anio) {
             <td class="mono" style="text-align:right">${formatMoney(t.no_gravado + t.perc_iibb + t.perc_iva + t.imp_interno + t.imp_interno_gasoil + t.retencion)}</td>
             <td class="mono" style="text-align:right">${formatMoney(t.total)}</td>
         </tr>`;
+
+    lastDocs = docs;
+    lastMeta = { tipo, mes: parseInt(mes), anio };
+    document.getElementById('btn-exportar-excel').style.display = '';
 
     document.getElementById('mensual-empty').style.display = 'none';
     document.getElementById('res-mensual').style.display   = '';
@@ -425,6 +439,80 @@ function totDetalle(rows, grandLabel, grandVal, grandColor) {
 }
 
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Exportar Excel completo ───────────────────────────────────────────────
+function exportarExcel() {
+    if (!lastDocs.length) { toast('Generá el informe primero', 'warning'); return; }
+
+    const HEADERS = [
+        'Fecha', 'Tipo', 'Punto', 'Número Factura', 'Nombre', 'CUIT',
+        'Neto 10.5%', 'IVA 10.5%',
+        'Neto 21%',   'IVA 21%',
+        'Neto 27%',   'IVA 27%',
+        'No Gravado', 'Percepción IIBB', 'Percepción IVA',
+        'Imp. Interno', 'Imp. Int. Gasoil', 'Total',
+    ];
+
+    function byAlic(renglones, alicuota, field) {
+        return renglones
+            .filter(r => Math.abs(parseFloat(r.alicuota) - alicuota) < 0.1)
+            .reduce((s, r) => s + parseFloat(r[field] || 0), 0);
+    }
+
+    function fmtFecha(f) {
+        if (!f) return '';
+        const [y, m, d] = String(f).split('-');
+        return `${d}/${m}/${y}`;
+    }
+
+    const dataRows = lastDocs.map(d => [
+        fmtFecha(d.fecha),
+        d.tipo                          || '',
+        d.punto_venta,
+        d.numero,
+        d.nombre                        || '',
+        d.cuit                          || '',
+        byAlic(d.renglones, 10.5, 'neto'),
+        byAlic(d.renglones, 10.5, 'iva'),
+        byAlic(d.renglones, 21,   'neto'),
+        byAlic(d.renglones, 21,   'iva'),
+        byAlic(d.renglones, 27,   'neto'),
+        byAlic(d.renglones, 27,   'iva'),
+        parseFloat(d.no_gravado         || 0),
+        parseFloat(d.perc_iibb          || 0),
+        parseFloat(d.perc_iva           || 0),
+        parseFloat(d.imp_interno        || 0),
+        parseFloat(d.imp_interno_gasoil || 0),
+        parseFloat(d.total),
+    ]);
+
+    // Fila de totales (sólo columnas numéricas)
+    const totRow = Array(18).fill('');
+    totRow[0] = 'TOTALES';
+    for (let col = 6; col <= 17; col++) {
+        totRow[col] = dataRows.reduce((s, r) => s + (r[col] || 0), 0);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet([HEADERS, ...dataRows, totRow]);
+
+    ws['!cols'] = [
+        {wch:12},{wch:22},{wch:7},{wch:14},{wch:28},{wch:16},
+        {wch:12},{wch:12},
+        {wch:12},{wch:12},
+        {wch:12},{wch:12},
+        {wch:12},{wch:16},{wch:14},
+        {wch:14},{wch:18},{wch:14},
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const mesNom   = MESES_NOMBRES[lastMeta.mes] || '';
+    const tipoLabel = lastMeta.tipo === 'compras' ? 'Compras' : 'Ventas';
+    const sheetName = `${tipoLabel} ${mesNom} ${lastMeta.anio}`.substring(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+    XLSX.writeFile(wb, `${lastMeta.tipo}_${mesNom}_${lastMeta.anio}.xlsx`);
+    toast('Excel exportado', 'success');
+}
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
