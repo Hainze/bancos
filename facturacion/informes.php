@@ -445,6 +445,7 @@ function exportarExcel() {
     if (!lastDocs.length) { toast('Generá el informe primero', 'warning'); return; }
 
     const HEADERS = [
+        'Mes Contable', 'Año Contable',
         'Fecha', 'Tipo', 'Punto', 'Número Factura', 'Nombre', 'CUIT',
         'Neto 10.5%', 'IVA 10.5%',
         'Neto 21%',   'IVA 21%',
@@ -465,7 +466,11 @@ function exportarExcel() {
         return `${d}/${m}/${y}`;
     }
 
+    const mesNomContable = MESES_NOMBRES[lastMeta.mes] || '';
+
     const dataRows = lastDocs.map(d => [
+        mesNomContable,
+        lastMeta.anio,
         fmtFecha(d.fecha),
         d.tipo                          || '',
         d.punto_venta,
@@ -486,16 +491,17 @@ function exportarExcel() {
         parseFloat(d.total),
     ]);
 
-    // Fila de totales (sólo columnas numéricas)
-    const totRow = Array(18).fill('');
+    // Fila de totales (sólo columnas numéricas — ahora desplazadas 2)
+    const totRow = Array(20).fill('');
     totRow[0] = 'TOTALES';
-    for (let col = 6; col <= 17; col++) {
+    for (let col = 8; col <= 19; col++) {
         totRow[col] = dataRows.reduce((s, r) => s + (r[col] || 0), 0);
     }
 
     const ws = XLSX.utils.aoa_to_sheet([HEADERS, ...dataRows, totRow]);
 
     ws['!cols'] = [
+        {wch:14},{wch:12},
         {wch:12},{wch:22},{wch:7},{wch:14},{wch:28},{wch:16},
         {wch:12},{wch:12},
         {wch:12},{wch:12},
@@ -505,12 +511,11 @@ function exportarExcel() {
     ];
 
     const wb = XLSX.utils.book_new();
-    const mesNom   = MESES_NOMBRES[lastMeta.mes] || '';
     const tipoLabel = lastMeta.tipo === 'compras' ? 'Compras' : 'Ventas';
-    const sheetName = `${tipoLabel} ${mesNom} ${lastMeta.anio}`.substring(0, 31);
+    const sheetName = `${tipoLabel} ${mesNomContable} ${lastMeta.anio}`.substring(0, 31);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
-    XLSX.writeFile(wb, `${lastMeta.tipo}_${mesNom}_${lastMeta.anio}.xlsx`);
+    XLSX.writeFile(wb, `${lastMeta.tipo}_${mesNomContable}_${lastMeta.anio}.xlsx`);
     toast('Excel exportado', 'success');
 }
 </script>
