@@ -1,0 +1,123 @@
+==========================================================================
+ INSTRUCCIONES PARA CLAUDE (Visual Studio Code)
+ Procesador de extractos - BANCO CREDICOOP
+==========================================================================
+ 
+OBJETIVO
+--------
+Necesito un script en Python que reciba un archivo Excel exportado del
+Banco Credicoop (reporte de "Saldos y Movimientos" de una Cuenta Corriente)
+y devuelva OTRO Excel ya modificado y simplificado.
+ 
+El Excel de salida debe tener SOLO 4 columnas, en este orden exacto:
+ 
+    Columna A -> Fecha
+    Columna B -> Descripción
+    Columna C -> Importe
+    Columna D -> Tipo
+ 
+ 
+CÓMO ES EL ARCHIVO QUE ENTRA (el que da el banco)
+-------------------------------------------------
+- Es un archivo .xls (formato viejo de Excel, OLE2 / BIFF, NO es .xlsx).
+  Para leerlo en pandas hace falta el motor "xlrd":
+      pip install xlrd openpyxl pandas
+ 
+- La primera fila es el encabezado y trae estas columnas, en este orden:
+ 
+      Fecha | Concepto | Nro.Cpbte. | Débito | Crédito | Saldo | Cód.
+ 
+  (Ojo: los nombres traen tildes: "Débito", "Crédito", "Cód.")
+ 
+- Puede haber filas totalmente vacías en el medio del archivo:
+  esas filas se deben IGNORAR (saltear).
+ 
+ 
+TRANSFORMACIÓN QUE QUIERO (regla por regla)
+-------------------------------------------
+1) Columna A "Fecha":
+   Se copia tal cual de la columna "Fecha" del banco (formato dd/mm/aaaa).
+ 
+2) Columna B "Descripción":
+   Se copia tal cual de la columna "Concepto" del banco.
+ 
+3) Columna C "Importe":
+   UNA SOLA columna que junta Débito y Crédito.
+   - Si la fila tiene valor en "Débito" (distinto de 0)  -> Importe = ese valor de Débito.
+   - Si la fila tiene valor en "Crédito" (distinto de 0) -> Importe = ese valor de Crédito.
+   NO quiero dos columnas separadas. Quiero una sola columna "Importe".
+   El número se mantiene con sus decimales tal cual viene (ej: 11884.99).
+ 
+4) Columna D "Tipo":
+   - Si el importe salió de "Débito"  -> Tipo = "Gasto"
+   - Si el importe salió de "Crédito" -> Tipo = "Ingreso"
+   (En Credicoop el Débito es plata que SALE = Gasto, y el Crédito es plata que ENTRA = Ingreso.)
+ 
+ 
+COLUMNAS QUE SE ELIMINAN (no deben aparecer nunca en la salida)
+---------------------------------------------------------------
+- "Nro.Cpbte."  -> ELIMINAR
+- "Débito"      -> ELIMINAR como columna propia (su dato pasa a "Importe")
+- "Crédito"     -> ELIMINAR como columna propia (su dato pasa a "Importe")
+- "Saldo"       -> ELIMINAR
+- "Cód."        -> ELIMINAR
+ 
+En el Excel final SOLO pueden existir las 4 columnas:
+Fecha, Descripción, Importe, Tipo. Nada más.
+ 
+ 
+NOMBRE DEL ARCHIVO (importante)
+-------------------------------
+El banco siempre exporta con un nombre de este tipo:
+ 
+    SaldMovs_CC_-144-009478-3_27-06-2026.xls
+ 
+El patrón es:
+    SaldMovs_CC_-<numero_de_cuenta>_<fecha_dd-mm-aaaa>.xls
+ 
+El script NO debe tener el nombre "hardcodeado". Debe tomar el archivo
+.xls que esté en la carpeta (o el que se le pase como parámetro) sin
+importar el número de cuenta ni la fecha, porque eso cambia en cada
+exportación.
+ 
+El archivo de SALIDA debe llamarse igual que el de entrada pero con el
+sufijo "_procesado" y extensión .xlsx. Ejemplo:
+ 
+    Entrada:  SaldMovs_CC_-144-009478-3_27-06-2026.xls
+    Salida:   SaldMovs_CC_-144-009478-3_27-06-2026_procesado.xlsx
+ 
+ 
+FORMATO DEL EXCEL DE SALIDA
+---------------------------
+- Que sea .xlsx.
+- Fila 1 con los encabezados (Fecha, Descripción, Importe, Tipo) en negrita.
+- Que se vea prolijo: ancho de columnas ajustado (sobre todo
+  "Descripción" que es larga), y la columna "Importe" alineada a la
+  derecha con formato de número con 2 decimales.
+- Mantener el mismo orden de filas que trae el archivo original.
+ 
+ 
+CASOS BORDE A TENER EN CUENTA
+-----------------------------
+- Filas vacías (sin Fecha): saltear, no incluirlas.
+- Si una fila tuviera 0 en Débito y 0 en Crédito al mismo tiempo:
+  saltearla (no es un movimiento real).
+- La columna "Cód." del banco a veces trae texto (ej: "IVA08") y a veces
+  números (ej: 2675); como esa columna se elimina, no importa, pero no
+  hay que dejar que rompa la lectura.
+- Tratar los valores numéricos como números (no como texto), para que el
+  Importe quede bien sumable en Excel.
+ 
+ 
+RESUMEN DE EJEMPLO (para que se entienda el antes / después)
+------------------------------------------------------------
+ANTES (banco):
+  29/05/2026 | Com. mantenimiento cuenta | 149346 | 59000 | 0 | 1298466.60 | 500
+  14/05/2026 | Pago a Comercios Cabal ... | 815031 | 0 | 11884.99 | 1357537.91 | 2675
+ 
+DESPUÉS (lo que quiero):
+  Fecha      | Descripción                 | Importe  | Tipo
+  29/05/2026 | Com. mantenimiento cuenta   | 59000.00 | Gasto
+  14/05/2026 | Pago a Comercios Cabal ...  | 11884.99 | Ingreso
+ 
+==========================================================================
