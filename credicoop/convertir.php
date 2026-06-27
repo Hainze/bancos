@@ -36,7 +36,7 @@ require_once __DIR__ . '/includes/header.php';
                 <span>✓</span><span id="status-msg">Archivo generado y descargado.</span>
             </div>
             <div id="status-err" style="display:none;margin-top:12px" class="alert alert-danger">
-                <span>✕</span><span id="err-msg">—</span>
+                <span>✕</span><pre id="err-msg" style="margin:0;white-space:pre-wrap;font-size:12px;font-family:monospace">—</pre>
             </div>
         </div>
 
@@ -209,7 +209,14 @@ document.getElementById('btn-convertir').addEventListener('click', async () => {
 
         if (ct.includes('json')) {
             const data = await res.json();
-            document.getElementById('err-msg').textContent  = data.error || 'Error desconocido';
+            let msg = data.error || 'Error desconocido';
+            if (data.debug) {
+                msg += '\n\n[DEBUG] Encabezado detectado: ' + JSON.stringify(data.debug.header_raw) +
+                       '\nColumnas detectadas: ' + JSON.stringify(data.debug.cols_detectados) +
+                       '\nTotal filas: ' + data.debug.total_rawRows +
+                       '\nMuestra fila 2: ' + JSON.stringify(data.debug.muestra_fila2);
+            }
+            document.getElementById('err-msg').textContent  = msg;
             document.getElementById('status-err').style.display = 'flex';
         } else {
             const blob  = await res.blob();
