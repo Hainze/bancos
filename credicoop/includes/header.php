@@ -41,6 +41,9 @@ $nombre_corto = explode(' ', $user['nombre'] ?? 'Usuario')[0];
             <a href="/credicoop/procesar.php" class="nav-item <?= $pagina_actual === 'procesar' ? 'active' : '' ?>">
                 <span class="nav-icon">⬆</span><span>Importar Excel</span>
             </a>
+            <a href="/credicoop/convertir.php" class="nav-item <?= $pagina_actual === 'convertir' ? 'active' : '' ?>">
+                <span class="nav-icon">⇄</span><span>Convertir Excel</span>
+            </a>
             <a href="/credicoop/movimientos.php" class="nav-item <?= $pagina_actual === 'movimientos' ? 'active' : '' ?>">
                 <span class="nav-icon">≡</span><span>Movimientos</span>
             </a>
