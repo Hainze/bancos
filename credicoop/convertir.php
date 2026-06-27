@@ -13,27 +13,26 @@ require_once __DIR__ . '/includes/header.php';
                 <div>
                     Subí el Excel tal como lo descargás del banco y te devuelvo un archivo limpio con:<br>
                     <strong>Fecha · Descripción · Importe · Tipo</strong><br>
-                    <small style="opacity:.7">El archivo no se guarda en el sistema.</small>
+                    <small style="opacity:.7">Acepta .xls y .xlsx. El archivo no se sube al servidor.</small>
                 </div>
             </div>
             <div class="upload-zone" id="upload-zone">
                 <input type="file" id="file-input" accept=".xlsx,.xls,.csv">
                 <div class="upload-icon">📄</div>
                 <div class="upload-title">Arrastrá el Excel del Credicoop aquí</div>
-                <div class="upload-sub">o hacé click para seleccionar · .xlsx .xls .csv</div>
+                <div class="upload-sub">o hacé click para seleccionar · .xls .xlsx .csv</div>
             </div>
             <div id="file-selected" style="display:none;margin-top:12px" class="alert alert-success">
                 <span>✓</span><span id="file-name">—</span>
             </div>
             <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
                 <button class="btn btn-primary btn-lg" id="btn-convertir" disabled>
-                    <span id="btn-txt">⬇ Convertir y Descargar</span>
-                    <span id="btn-spinner" class="spinner" style="display:none"></span>
+                    ⬇ Convertir y Descargar
                 </button>
                 <button class="btn btn-secondary" id="btn-limpiar" style="display:none">✕ Limpiar</button>
             </div>
             <div id="status-ok" style="display:none;margin-top:12px" class="alert alert-success">
-                <span>✓</span><span id="status-msg">Archivo generado y descargado.</span>
+                <span>✓</span><span id="status-msg">Archivo descargado.</span>
             </div>
             <div id="status-err" style="display:none;margin-top:12px" class="alert alert-danger">
                 <span>✕</span><pre id="err-msg" style="margin:0;white-space:pre-wrap;font-size:12px;font-family:monospace">—</pre>
@@ -85,162 +84,180 @@ require_once __DIR__ . '/includes/header.php';
 
 <script>
 let currentFile = null;
+let parsedRows  = null; // Array de { fecha, desc, importe, tipo }
+
 initDropZone('upload-zone', f => setFile(f));
 
 function setFile(f) {
     currentFile = f;
+    parsedRows  = null;
     document.getElementById('file-name').textContent = f.name + ' (' + (f.size / 1024).toFixed(1) + ' KB)';
     document.getElementById('file-selected').style.display = 'flex';
-    document.getElementById('btn-convertir').disabled = false;
+    document.getElementById('btn-convertir').disabled = true;
     document.getElementById('btn-limpiar').style.display = 'inline-flex';
-    document.getElementById('status-ok').style.display = 'none';
+    document.getElementById('status-ok').style.display  = 'none';
     document.getElementById('status-err').style.display = 'none';
-    readPreview(f);
+    parseFile(f);
 }
 
 document.getElementById('btn-limpiar').addEventListener('click', () => {
-    currentFile = null;
+    currentFile = null; parsedRows = null;
     document.getElementById('file-input').value = '';
     document.getElementById('file-selected').style.display = 'none';
     document.getElementById('btn-convertir').disabled = true;
     document.getElementById('btn-limpiar').style.display = 'none';
-    document.getElementById('status-ok').style.display = 'none';
+    document.getElementById('status-ok').style.display  = 'none';
     document.getElementById('status-err').style.display = 'none';
     document.getElementById('preview-table').style.display = 'none';
     document.getElementById('preview-empty').style.display = 'block';
 });
 
-// Vista previa del lado cliente usando SheetJS
-function readPreview(file) {
+// ── Parseo con SheetJS (soporta .xls y .xlsx) ─────────────────────────────────
+function parseFile(file) {
     function doRead() {
         const reader = new FileReader();
         reader.onload = e => {
             try {
-                const wb   = XLSX.read(e.target.result, { type: 'array', cellDates: true });
-                const ws   = wb.Sheets[wb.SheetNames[0]];
-                const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-                if (data.length < 2) return;
+                const wb  = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+                const ws  = wb.Sheets[wb.SheetNames[0]];
+                const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-                const hdrs = data[0].map(h => (h||'').toString()
-                    .normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim());
+                if (!raw || raw.length < 2) {
+                    showErr('El archivo está vacío o no tiene filas de datos.');
+                    return;
+                }
+
+                // Detectar columnas por encabezado
+                const hdrs = raw[0].map(h => norm(String(h)));
                 let cFecha=-1, cConc=-1, cDebe=-1, cHaber=-1;
                 hdrs.forEach((h, i) => {
-                    if (/^fecha/.test(h))                           cFecha = i;
-                    else if (/concepto|^desc|detalle/.test(h))      cConc  = i;
-                    else if (/debito|debe|cargo/.test(h))           cDebe  = i;
-                    else if (/credito|haber|abono/.test(h))         cHaber = i;
+                    if      (/^fecha/.test(h))                       cFecha = i;
+                    else if (/concepto|^desc|detalle/.test(h))       cConc  = i;
+                    else if (/debito|debe|cargo|extraccion/.test(h)) cDebe  = i;
+                    else if (/credito|haber|abono|deposito/.test(h)) cHaber = i;
                 });
+                // Fallback posición conocida Credicoop: A vacía, B=Fecha, C=Concepto, D=Nro, E=Débito, F=Crédito
                 if (cFecha < 0) cFecha = 1;
                 if (cConc  < 0) cConc  = 2;
                 if (cDebe  < 0) cDebe  = 4;
                 if (cHaber < 0) cHaber = 5;
 
+                // Transformar filas
                 const rows = [];
-                for (let i = 1; i < data.length; i++) {
-                    const r    = data[i];
-                    const desc = (r[cConc] || '').toString().trim();
+                for (let i = 1; i < raw.length; i++) {
+                    const r     = raw[i];
+                    const desc  = String(r[cConc] || '').trim();
                     const debe  = toNum(r[cDebe]);
                     const haber = toNum(r[cHaber]);
                     if (!desc && debe === 0 && haber === 0) continue;
-                    let fecha = '';
-                    const fv = r[cFecha];
-                    if (fv instanceof Date) fecha = fv.toLocaleDateString('es-AR');
-                    else if (fv) fecha = fv.toString();
+
                     const importe = haber > 0 ? haber : debe;
                     const tipo    = haber > 0 ? 'Ingreso' : 'Gasto';
-                    rows.push({ fecha, desc, importe, tipo });
+                    rows.push({ fecha: fmtFecha(r[cFecha]), desc, importe, tipo });
                 }
+
+                parsedRows = rows;
                 renderPreview(rows);
-            } catch(e) { /* silencioso */ }
+                document.getElementById('btn-convertir').disabled = (rows.length === 0);
+
+                if (rows.length === 0) {
+                    showErr('No se encontraron filas con datos.\n' +
+                        'Encabezados detectados: ' + JSON.stringify(raw[0].slice(0,10)) + '\n' +
+                        'Cols usadas: Fecha=' + cFecha + ' Desc=' + cConc + ' Debe=' + cDebe + ' Haber=' + cHaber);
+                }
+            } catch(ex) {
+                showErr('Error al leer el archivo: ' + ex.message);
+            }
         };
         reader.readAsArrayBuffer(file);
     }
 
     if (typeof XLSX !== 'undefined') { doRead(); return; }
-    // Esperar a que SheetJS cargue (está en defer)
     const t = setInterval(() => { if (typeof XLSX !== 'undefined') { clearInterval(t); doRead(); } }, 100);
 }
 
-function toNum(v) {
-    if (v === '' || v === null || v === undefined) return 0;
-    if (typeof v === 'number') return v;
-    const s = v.toString().replace(/[$\s]/g, '').replace(/\./g, '').replace(',', '.');
-    return parseFloat(s) || 0;
-}
+// ── Conversión y descarga (100% client-side, SheetJS) ─────────────────────────
+document.getElementById('btn-convertir').addEventListener('click', () => {
+    if (!parsedRows || parsedRows.length === 0) return;
+    try {
+        const aoa = [['Fecha', 'Descripción', 'Importe', 'Tipo']];
+        parsedRows.forEach(r => aoa.push([r.fecha, r.desc, r.importe, r.tipo]));
 
+        const wsOut = XLSX.utils.aoa_to_sheet(aoa);
+        wsOut['!cols'] = [{ wch: 13 }, { wch: 52 }, { wch: 16 }, { wch: 10 }];
+
+        const wbOut = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wbOut, wsOut, 'Movimientos');
+
+        const fname = 'credicoop_' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '.xlsx';
+        XLSX.writeFile(wbOut, fname);
+
+        document.getElementById('status-msg').textContent = fname + ' descargado (' + parsedRows.length + ' filas).';
+        document.getElementById('status-ok').style.display  = 'flex';
+        document.getElementById('status-err').style.display = 'none';
+    } catch(ex) {
+        showErr('Error al generar el archivo: ' + ex.message);
+    }
+});
+
+// ── Preview ────────────────────────────────────────────────────────────────────
 function renderPreview(rows) {
     const ing   = rows.filter(r => r.tipo === 'Ingreso').length;
     const gasto = rows.filter(r => r.tipo === 'Gasto').length;
-    document.getElementById('preview-count').textContent  = rows.length + ' filas';
-    document.getElementById('prev-ing').textContent       = ing   + ' ingresos';
-    document.getElementById('prev-gasto').textContent     = gasto + ' gastos';
+    document.getElementById('preview-count').textContent = rows.length + ' filas';
+    document.getElementById('prev-ing').textContent      = ing   + ' ingresos';
+    document.getElementById('prev-gasto').textContent    = gasto + ' gastos';
 
-    const maxPreview = 200;
-    document.getElementById('preview-body').innerHTML = rows.slice(0, maxPreview).map(r =>
-        `<tr>
-            <td class="mono" style="white-space:nowrap">${r.fecha}</td>
-            <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.desc.replace(/"/g,'&quot;')}">${r.desc}</td>
-            <td class="mono" style="text-align:right;color:${r.tipo==='Ingreso'?'var(--green)':'var(--red)'}">${formatMoney(r.importe)}</td>
-            <td><span class="badge ${r.tipo==='Ingreso'?'badge-green':'badge-red'}">${r.tipo}</span></td>
-        </tr>`
-    ).join('') + (rows.length > maxPreview
-        ? `<tr><td colspan="4" style="text-align:center;color:var(--sub);font-size:12px;padding:10px">… y ${rows.length - maxPreview} filas más</td></tr>`
-        : '');
+    const MAX = 200;
+    document.getElementById('preview-body').innerHTML =
+        rows.slice(0, MAX).map(r =>
+            `<tr>
+                <td class="mono" style="white-space:nowrap">${r.fecha}</td>
+                <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.desc)}">${r.desc}</td>
+                <td class="mono" style="text-align:right;color:${r.tipo==='Ingreso'?'var(--green)':'var(--red)'}">${formatMoney(r.importe)}</td>
+                <td><span class="badge ${r.tipo==='Ingreso'?'badge-green':'badge-red'}">${r.tipo}</span></td>
+            </tr>`
+        ).join('') +
+        (rows.length > MAX ? `<tr><td colspan="4" style="text-align:center;color:var(--sub);font-size:12px;padding:10px">… y ${rows.length - MAX} filas más</td></tr>` : '');
 
     document.getElementById('preview-empty').style.display = 'none';
     document.getElementById('preview-table').style.display = 'block';
 }
 
-// Envío al servidor y descarga del XLSX resultante
-document.getElementById('btn-convertir').addEventListener('click', async () => {
-    if (!currentFile) return;
-    const btn = document.getElementById('btn-convertir');
-    btn.disabled = true;
-    document.getElementById('btn-txt').style.display    = 'none';
-    document.getElementById('btn-spinner').style.display = 'inline-block';
-    document.getElementById('status-ok').style.display  = 'none';
-    document.getElementById('status-err').style.display = 'none';
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function norm(s) {
+    return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+}
 
-    try {
-        const form = new FormData();
-        form.append('excel', currentFile);
-        const res = await fetch('/credicoop/api/convertir_excel.php', { method: 'POST', body: form });
-        const ct  = res.headers.get('Content-Type') || '';
-
-        if (ct.includes('json')) {
-            const data = await res.json();
-            let msg = data.error || 'Error desconocido';
-            if (data.debug) {
-                msg += '\n\n[DEBUG] Encabezado detectado: ' + JSON.stringify(data.debug.header_raw) +
-                       '\nColumnas detectadas: ' + JSON.stringify(data.debug.cols_detectados) +
-                       '\nTotal filas: ' + data.debug.total_rawRows +
-                       '\nMuestra fila 2: ' + JSON.stringify(data.debug.muestra_fila2);
-            }
-            document.getElementById('err-msg').textContent  = msg;
-            document.getElementById('status-err').style.display = 'flex';
-        } else {
-            const blob  = await res.blob();
-            const url   = URL.createObjectURL(blob);
-            const a     = document.createElement('a');
-            const fecha = new Date().toISOString().slice(0,10).replace(/-/g,'');
-            a.href     = url;
-            a.download = 'credicoop_' + fecha + '.xlsx';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            document.getElementById('status-msg').textContent  = 'Archivo descargado correctamente.';
-            document.getElementById('status-ok').style.display = 'flex';
-        }
-    } catch (e) {
-        document.getElementById('err-msg').textContent  = 'Error: ' + e.message;
-        document.getElementById('status-err').style.display = 'flex';
-    } finally {
-        btn.disabled = false;
-        document.getElementById('btn-txt').style.display    = 'inline';
-        document.getElementById('btn-spinner').style.display = 'none';
+function fmtFecha(v) {
+    if (!v) return '';
+    if (v instanceof Date) {
+        return String(v.getDate()).padStart(2,'0') + '/' +
+               String(v.getMonth()+1).padStart(2,'0') + '/' +
+               v.getFullYear();
     }
-});
+    const s = String(v).trim();
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) return s;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        const [y, m, d] = s.split('-');
+        return d + '/' + m + '/' + y;
+    }
+    return s;
+}
+
+function toNum(v) {
+    if (v === '' || v == null) return 0;
+    if (typeof v === 'number') return v;
+    // Formato argentino: 1.234,56 (punto=miles, coma=decimal)
+    const s = String(v).replace(/[$\s ]/g, '').replace(/\./g, '').replace(',', '.');
+    return parseFloat(s) || 0;
+}
+
+function esc(s) { return String(s).replace(/"/g, '&quot;').replace(/</g,'&lt;'); }
+function showErr(msg) {
+    document.getElementById('err-msg').textContent  = msg;
+    document.getElementById('status-err').style.display = 'flex';
+}
 </script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
