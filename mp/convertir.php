@@ -127,14 +127,70 @@ document.getElementById('btn-limpiar').addEventListener('click', () => {
 function parseFile(file) {
     function doRead() {
         const reader = new FileReader();
+
+        reader.onerror = () => showErr(
+            'FileReader no pudo leer el archivo.\n' +
+            'Nombre: ' + file.name + '\nTamaño: ' + file.size + ' bytes'
+        );
+
         reader.onload = e => {
             try {
-                const wb  = XLSX.read(e.target.result, { type: 'array', cellDates: true });
-                const ws  = wb.Sheets[wb.SheetNames[0]];
-                const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                const data = e.target.result;
+
+                // Detectar formato por magic bytes para manejar HTML disfrazado de XLSX
+                const bytes = new Uint8Array(data.slice(0, 4));
+                const hex4  = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                const isHtml = hex4.startsWith('3c') || hex4.startsWith('efbb');
+
+                let wb;
+                if (isHtml) {
+                    const text = new TextDecoder('utf-8').decode(data);
+                    wb = XLSX.read(text, { type: 'string', cellDates: true });
+                } else {
+                    wb = XLSX.read(data, { type: 'array', cellDates: true });
+                }
+
+                if (!wb.SheetNames || wb.SheetNames.length === 0) {
+                    showErr('El archivo no contiene hojas de cálculo.\nFormato: ' + hex4);
+                    return;
+                }
+
+                // Buscar la hoja con encabezados MP válidos (el primer sheet puede ser portada)
+                let raw = null;
+                let sheetUsada = '';
+                for (const name of wb.SheetNames) {
+                    const candidate = wb.Sheets[name];
+                    if (!candidate || !candidate['!ref']) continue;
+                    const candidateRows = XLSX.utils.sheet_to_json(candidate, { header: 1, defval: '' });
+                    if (candidateRows.length < 2) continue;
+
+                    // Verificar si esta hoja tiene encabezados de MP
+                    const hIdx  = findHeaderRow(candidateRows);
+                    const hdrs  = candidateRows[hIdx].map(h => norm(String(h)));
+                    const mpHits = hdrs.filter(h =>
+                        /fecha.*libera/.test(h) || /^descripci/.test(h) ||
+                        /monto.*bruto/.test(h)  || /comisi/.test(h) ||
+                        /iibb/.test(h)           || /medio.*pago/.test(h)
+                    ).length;
+
+                    if (mpHits >= 2) {
+                        raw = candidateRows;
+                        sheetUsada = name;
+                        break; // Hoja correcta encontrada
+                    }
+                    // Como fallback guardar la hoja con más filas
+                    if (!raw || candidateRows.length > raw.length) {
+                        raw = candidateRows;
+                        sheetUsada = name;
+                    }
+                }
 
                 if (!raw || raw.length < 2) {
-                    showErr('El archivo está vacío o no tiene filas de datos.');
+                    showErr(
+                        'El archivo no tiene filas con datos.\n' +
+                        'Hojas encontradas: ' + wb.SheetNames.join(', ') + '\n' +
+                        'Formato (hex): ' + hex4
+                    );
                     return;
                 }
 
@@ -145,11 +201,14 @@ function parseFile(file) {
 
                 if (cols.fecha < 0) {
                     showErr(
-                        'No se detectó la columna de fecha.\n' +
-                        'Fila de encabezado usada (fila ' + (headerIdx + 1) + '):\n' +
-                        raw[headerIdx].slice(0, 20).join(' | ') + '\n\n' +
-                        'Primeras 3 filas del archivo:\n' +
-                        raw.slice(0, 3).map((r, i) => 'F' + (i+1) + ': ' + r.slice(0,8).join(' | ')).join('\n')
+                        'No se detectó la columna de fecha.\n\n' +
+                        'Hoja usada: "' + sheetUsada + '"\n' +
+                        'Fila de encabezado (fila ' + (headerIdx + 1) + '):\n  ' +
+                        raw[headerIdx].slice(0, 15).filter(h => h !== '').join(' | ') + '\n\n' +
+                        'Primeras 3 filas:\n' +
+                        raw.slice(0, 3).map((r, i) =>
+                            'F' + (i+1) + ': ' + r.slice(0, 8).map(v => String(v).substring(0, 20)).join(' | ')
+                        ).join('\n')
                     );
                     return;
                 }
@@ -160,8 +219,7 @@ function parseFile(file) {
                     const r = raw[i];
 
                     // Saltar filas completamente vacías
-                    const tieneAlgo = r.some(v => String(v).trim() !== '');
-                    if (!tieneAlgo) continue;
+                    if (!r.some(v => String(v).trim() !== '')) continue;
 
                     const fecha      = fmtFecha(r[cols.fecha]);
                     const desc       = String(r[cols.desc]      || '').trim();
@@ -184,16 +242,20 @@ function parseFile(file) {
 
                 if (rows.length === 0) {
                     showErr(
-                        'No se encontraron filas con datos.\n\n' +
-                        'Fila de encabezado usada (fila ' + (headerIdx + 1) + '):\n' +
-                        raw[headerIdx].slice(0, 15).join(' | ') + '\n\n' +
-                        'Columnas detectadas:\n' + JSON.stringify(cols, null, 2) + '\n\n' +
-                        'Muestra fila de datos (fila ' + (headerIdx + 2) + '):\n' +
-                        (raw[headerIdx + 1] || []).slice(0, 15).join(' | ')
+                        'Se leyó el archivo pero no se encontraron filas válidas.\n\n' +
+                        'Hoja: "' + sheetUsada + '" | Filas totales: ' + raw.length + '\n' +
+                        'Encabezado detectado (fila ' + (headerIdx + 1) + '):\n  ' +
+                        raw[headerIdx].slice(0, 15).filter(h => h !== '').join(' | ') + '\n\n' +
+                        'Columnas mapeadas:\n' + JSON.stringify(cols) + '\n\n' +
+                        'Primera fila de datos:\n  ' +
+                        (raw[headerIdx + 1] || []).slice(0, 8).map((v, i) => i + ':' + String(v).substring(0, 15)).join(' | ')
                     );
                 }
             } catch (ex) {
-                showErr('Error al leer el archivo: ' + ex.message);
+                showErr(
+                    'Error al procesar el archivo: ' + ex.message + '\n\n' +
+                    'Nombre: ' + file.name + '\nTamaño: ' + file.size + ' bytes\nTipo MIME: ' + (file.type || 'desconocido')
+                );
             }
         };
         reader.readAsArrayBuffer(file);
