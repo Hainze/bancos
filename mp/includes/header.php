@@ -43,6 +43,10 @@ $nombre_corto = explode(' ', $user['nombre'] ?? 'Usuario')[0];
                 <span class="nav-icon">⬆</span>
                 <span>Importar Excel</span>
             </a>
+            <a href="/mp/convertir.php" class="nav-item <?= $pagina_actual === 'convertir' ? 'active' : '' ?>">
+                <span class="nav-icon">⇄</span>
+                <span>Convertir Excel</span>
+            </a>
             <a href="/mp/movimientos.php" class="nav-item <?= $pagina_actual === 'movimientos' ? 'active' : '' ?>">
                 <span class="nav-icon">≡</span>
                 <span>Movimientos</span>

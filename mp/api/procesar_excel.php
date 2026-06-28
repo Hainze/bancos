@@ -95,46 +95,52 @@ try {
     $header = $rawRows[0] ?? [];
     $normHeader = array_map('normStrMP', $header);
 
-    $colFecha   = -1; $colDesc  = -1; $colTipo   = -1;
-    $colMonto   = -1; $colCred  = -1; $colDeb    = -1;
-    $colRef     = -1; $colDisp  = -1;
+    // Columnas del Excel estándar de Mercado Pago:
+    // A=FechaLiberacion B=IdOperacion C=Descripcion D=MontoNetoAcreditado
+    // E=MontoNetoDebitado F=MontoBruto G=Comision H=IIBB I=MedioPago
+    // J=FechaAprobacion K=CanalVenta L=Plataforma M=Saldo N=TipoMedio O=PurchaseId
+    $colFecha      = -1; $colDesc       = -1; $colTipo    = -1;
+    $colMonto      = -1; $colCred       = -1; $colDeb     = -1;
+    $colRef        = -1; $colDisp       = -1;
+    $colMontoBruto = -1; $colComision   = -1; $colIIBB    = -1;
+    $colMedioPago  = -1; $colPlataforma = -1; $colTipoMedio = -1;
 
     foreach ($normHeader as $i => $h) {
-        if      (preg_match('/^fecha/', $h))                                      $colFecha = $i;
-        elseif  (preg_match('/tipo.*mov|tipo.*op|tipo.*trans/', $h))              $colTipo  = $i;
-        elseif  (preg_match('/^desc|detalle|concepto|motivo/', $h))               $colDesc  = $i;
-        elseif  (preg_match('/^monto|^importe|^valor/', $h))                      $colMonto = $i;
-        elseif  (preg_match('/credito|ingreso|haber|entrada/', $h))               $colCred  = $i;
-        elseif  (preg_match('/debito|egreso|debe|salida/', $h))                   $colDeb   = $i;
-        elseif  (preg_match('/ref|id.*op|n.*trans|comprobante/', $h))             $colRef   = $i;
-        elseif  (preg_match('/disponible|saldo/', $h))                            $colDisp  = $i;
+        if      ($colFecha      < 0 && preg_match('/fecha.*libera/', $h))          $colFecha      = $i;
+        elseif  ($colDesc       < 0 && preg_match('/^descripci/', $h))             $colDesc       = $i;
+        elseif  ($colMontoBruto < 0 && preg_match('/monto.*bruto/', $h))           $colMontoBruto = $i;
+        elseif  ($colCred       < 0 && preg_match('/monto.*neto.*acred/', $h))     $colCred       = $i;
+        elseif  ($colDeb        < 0 && preg_match('/monto.*neto.*deb/', $h))       $colDeb        = $i;
+        elseif  ($colComision   < 0 && preg_match('/comisi/', $h))                 $colComision   = $i;
+        elseif  ($colIIBB       < 0 && preg_match('/iibb/', $h))                   $colIIBB       = $i;
+        elseif  ($colMedioPago  < 0 && preg_match('/^medio.*pago/', $h))           $colMedioPago  = $i;
+        elseif  ($colPlataforma < 0 && preg_match('/plataforma/', $h))             $colPlataforma = $i;
+        elseif  ($colTipoMedio  < 0 && preg_match('/tipo.*medio/', $h))            $colTipoMedio  = $i;
+        elseif  ($colRef        < 0 && preg_match('/id.*operaci|purchase/', $h))   $colRef        = $i;
+        elseif  ($colTipo       < 0 && preg_match('/tipo.*mov|tipo.*op/', $h))     $colTipo       = $i;
+        elseif  ($colMonto      < 0 && preg_match('/^monto|^importe|^valor/', $h)) $colMonto      = $i;
+        elseif  ($colDisp       < 0 && preg_match('/saldo/', $h))                  $colDisp       = $i;
     }
 
-    // Defaults posicionales si no hay encabezados claros
-    if ($colFecha < 0)  $colFecha = 0;
+    // Fallbacks posicionales para el formato MP estándar
+    if ($colFecha      < 0) $colFecha      = 0;
+    if ($colDesc       < 0) $colDesc       = 2;
+    if ($colMontoBruto < 0) $colMontoBruto = 5;
+    if ($colComision   < 0) $colComision   = 6;
+    if ($colIIBB       < 0) $colIIBB       = 7;
+    if ($colMedioPago  < 0) $colMedioPago  = 8;
+    if ($colPlataforma < 0) $colPlataforma = 11;
+    if ($colTipoMedio  < 0) $colTipoMedio  = 13;
 
-    // Detectar formato
+    // Para la lógica de importe: usar Monto Neto Acreditado/Debitado o Monto Bruto
     $formatoCreditoDebito = ($colCred >= 0 && $colDeb >= 0);
-    $formatoMPEstandar    = ($colTipo >= 0 && $colMonto >= 0);
-
-    if (!$formatoCreditoDebito && $colMonto < 0) {
-        // Buscar la primera columna numérica como monto
-        $dataRow = $rawRows[1] ?? [];
-        for ($i = 1; $i < count($dataRow); $i++) {
-            if (is_numeric(str_replace([',','.','$',' '], '', $dataRow[$i])) && $i !== $colFecha) {
-                $colMonto = $i; break;
-            }
-        }
-        if ($colMonto < 0) $colMonto = count($header) - 1; // última columna
-    }
-
-    // Descripción: preferir col específica, sino col tipo, sino la que quede
-    if ($colDesc < 0)  $colDesc = ($colTipo >= 0 && $colMonto > 1) ? 1 : ($colMonto > 1 ? 1 : -1);
+    $formatoMPEstandar    = ($colMontoBruto >= 0);
+    if (!$formatoCreditoDebito && $colMonto < 0) $colMonto = $colMontoBruto;
 
     // Determinar texto del formato detectado
-    if ($formatoCreditoDebito)      $formatoTexto = 'Crédito/Débito separados';
-    elseif ($formatoMPEstandar)     $formatoTexto = 'Mercado Pago estándar (Tipo + Monto)';
-    else                            $formatoTexto = 'Monto firmado (positivo/negativo)';
+    if ($formatoCreditoDebito)  $formatoTexto = 'Mercado Pago (Neto Acreditado/Debitado)';
+    elseif ($formatoMPEstandar) $formatoTexto = 'Mercado Pago (Monto Bruto)';
+    else                        $formatoTexto = 'Monto firmado (positivo/negativo)';
 
     // ── Procesar filas ────────────────────────────────────────
     $loteCode   = 'MP-' . date('Ymd-His');
