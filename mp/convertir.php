@@ -138,21 +138,25 @@ function parseFile(file) {
                     return;
                 }
 
-                // Detectar columnas por nombre normalizado
-                const hdrs = raw[0].map(h => norm(String(h)));
+                // Buscar la fila real de encabezados (puede no ser la primera)
+                const headerIdx = findHeaderRow(raw);
+                const hdrs = raw[headerIdx].map(h => norm(String(h)));
                 const cols = detectarColumnas(hdrs);
 
                 if (cols.fecha < 0) {
                     showErr(
                         'No se detectó la columna de fecha.\n' +
-                        'Encabezados encontrados:\n' + raw[0].slice(0, 20).join(' | ')
+                        'Fila de encabezado usada (fila ' + (headerIdx + 1) + '):\n' +
+                        raw[headerIdx].slice(0, 20).join(' | ') + '\n\n' +
+                        'Primeras 3 filas del archivo:\n' +
+                        raw.slice(0, 3).map((r, i) => 'F' + (i+1) + ': ' + r.slice(0,8).join(' | ')).join('\n')
                     );
                     return;
                 }
 
-                // Transformar filas
+                // Transformar filas (saltear todo lo anterior al encabezado)
                 const rows = [];
-                for (let i = 1; i < raw.length; i++) {
+                for (let i = headerIdx + 1; i < raw.length; i++) {
                     const r = raw[i];
 
                     // Saltar filas completamente vacías
@@ -180,9 +184,12 @@ function parseFile(file) {
 
                 if (rows.length === 0) {
                     showErr(
-                        'No se encontraron filas con datos.\n' +
-                        'Encabezados detectados: ' + JSON.stringify(raw[0].slice(0, 15)) + '\n' +
-                        'Columnas usadas: ' + JSON.stringify(cols)
+                        'No se encontraron filas con datos.\n\n' +
+                        'Fila de encabezado usada (fila ' + (headerIdx + 1) + '):\n' +
+                        raw[headerIdx].slice(0, 15).join(' | ') + '\n\n' +
+                        'Columnas detectadas:\n' + JSON.stringify(cols, null, 2) + '\n\n' +
+                        'Muestra fila de datos (fila ' + (headerIdx + 2) + '):\n' +
+                        (raw[headerIdx + 1] || []).slice(0, 15).join(' | ')
                     );
                 }
             } catch (ex) {
@@ -194,6 +201,24 @@ function parseFile(file) {
 
     if (typeof XLSX !== 'undefined') { doRead(); return; }
     const t = setInterval(() => { if (typeof XLSX !== 'undefined') { clearInterval(t); doRead(); } }, 100);
+}
+
+// ── Busca la fila real de encabezados (MP pone títulos antes de los headers) ───
+function findHeaderRow(raw) {
+    // Palabras clave que deben aparecer en la fila de encabezados
+    const marcas = [
+        /fecha.*libera/, /^descripci/, /monto.*bruto/, /monto.*neto/,
+        /comisi/, /iibb/, /medio.*pago/, /plataforma/, /tipo.*medio/,
+    ];
+    for (let i = 0; i < Math.min(10, raw.length); i++) {
+        const rowNorm = raw[i].map(h => norm(String(h)));
+        let hits = 0;
+        for (const h of rowNorm) {
+            for (const re of marcas) { if (re.test(h)) { hits++; break; } }
+        }
+        if (hits >= 2) return i; // encontró al menos 2 columnas conocidas
+    }
+    return 0; // fallback: usar fila 0
 }
 
 // ── Detección de columnas ──────────────────────────────────────────────────────
