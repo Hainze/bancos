@@ -77,7 +77,6 @@ require_once __DIR__ . '/includes/header.php';
                             <tr>
                                 <th>Fecha</th>
                                 <th>Descripción</th>
-                                <th>Tipo</th>
                                 <th style="text-align:right">Monto Bruto</th>
                                 <th style="text-align:right">Comisión</th>
                                 <th style="text-align:right">Ret. IIBB</th>
@@ -234,7 +233,7 @@ function parseFile(file) {
                     // Saltar si no hay fecha ni descripción
                     if (!fecha && !desc) continue;
 
-                    rows.push({ fecha, desc, tipo: clasificar(desc), montoBruto, comision, iibb, medioPago, plataforma, tipoMedio });
+                    rows.push({ fecha, desc, montoBruto, comision, iibb, medioPago, plataforma, tipoMedio });
                 }
 
                 parsedRows = rows;
@@ -332,12 +331,12 @@ document.getElementById('btn-convertir').addEventListener('click', () => {
     if (!parsedRows || parsedRows.length === 0) return;
     try {
         const aoa = [[
-            'Fecha', 'Descripción', 'Tipo de movimiento', 'Monto Bruto',
+            'Fecha', 'Descripción', 'Monto Bruto',
             'Comisión Mercado Pago', 'Retención IIBB',
             'Medio de Pago', 'Plataforma', 'Tipo de Medio de Pago',
         ]];
         parsedRows.forEach(r => aoa.push([
-            r.fecha, r.desc, r.tipo, r.montoBruto,
+            r.fecha, r.desc, r.montoBruto,
             r.comision, r.iibb,
             r.medioPago, r.plataforma, r.tipoMedio,
         ]));
@@ -345,8 +344,7 @@ document.getElementById('btn-convertir').addEventListener('click', () => {
         const wsOut = XLSX.utils.aoa_to_sheet(aoa);
         wsOut['!cols'] = [
             { wch: 13 },  // Fecha
-            { wch: 40 },  // Descripción
-            { wch: 12 },  // Tipo de movimiento
+            { wch: 45 },  // Descripción
             { wch: 16 },  // Monto Bruto
             { wch: 18 },  // Comisión
             { wch: 16 },  // IIBB
@@ -378,8 +376,7 @@ function renderPreview(rows) {
         rows.slice(0, MAX).map(r =>
             `<tr>
                 <td class="mono" style="white-space:nowrap">${r.fecha}</td>
-                <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.desc)}">${r.desc}</td>
-                <td>${tipoBadge(r.tipo)}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.desc)}">${r.desc}</td>
                 <td class="mono" style="text-align:right">${fmtNum(r.montoBruto)}</td>
                 <td class="mono" style="text-align:right;color:var(--red)">${fmtNum(r.comision)}</td>
                 <td class="mono" style="text-align:right;color:var(--red)">${fmtNum(r.iibb)}</td>
@@ -394,26 +391,6 @@ function renderPreview(rows) {
 
     document.getElementById('preview-empty').style.display = 'none';
     document.getElementById('preview-table').style.display = 'block';
-}
-
-// ── Clasificación de movimientos ───────────────────────────────────────────────
-function clasificar(desc) {
-    const d = norm(desc);
-    if (/consumo.*pendiente/.test(d))      return 'Revisar';
-    if (/devolucion.*dinero/.test(d))      return 'Gasto';
-    if (/dinero.*retenido/.test(d))        return 'Revisar';
-    if (/extraccion.*efectivo/.test(d))    return 'Gasto';
-    if (/reserva.*pago/.test(d))           return 'Revisar';
-    if (/^pago\b/.test(d))                 return 'Ingreso';
-    if (/rendimiento/.test(d))             return 'Ingreso';
-    return '';
-}
-
-function tipoBadge(tipo) {
-    if (tipo === 'Ingreso') return '<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">Ingreso</span>';
-    if (tipo === 'Gasto')   return '<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">Gasto</span>';
-    if (tipo === 'Revisar') return '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">Revisar</span>';
-    return '<span style="color:var(--sub);font-size:11px">—</span>';
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
