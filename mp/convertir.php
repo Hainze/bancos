@@ -230,8 +230,8 @@ function parseFile(file) {
                     const plataforma = String(r[cols.plataforma] || '').trim();
                     const tipoMedio  = String(r[cols.tipoMedio]  || '').trim();
 
-                    // Saltar si no hay fecha ni descripción
-                    if (!fecha && !desc) continue;
+                    // Saltar filas sin descripción (ej: fila de saldo inicial del período)
+                    if (!desc) continue;
 
                     rows.push({ fecha, desc, montoBruto, comision, iibb, medioPago, plataforma, tipoMedio });
                 }
