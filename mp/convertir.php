@@ -78,8 +78,11 @@ require_once __DIR__ . '/includes/header.php';
                                 <th>Fecha</th>
                                 <th>Descripción</th>
                                 <th style="text-align:right">Monto Bruto</th>
+                                <th>Que Es</th>
                                 <th style="text-align:right">Comisión</th>
+                                <th style="text-align:right">Comision2</th>
                                 <th style="text-align:right">Ret. IIBB</th>
+                                <th style="text-align:right">Retencion2</th>
                                 <th>Medio de Pago</th>
                                 <th>Plataforma</th>
                                 <th>Tipo Medio</th>
@@ -229,11 +232,14 @@ function parseFile(file) {
                     const medioPago  = String(r[cols.medioPago]  || '').trim();
                     const plataforma = String(r[cols.plataforma] || '').trim();
                     const tipoMedio  = String(r[cols.tipoMedio]  || '').trim();
+                    const queEs      = montoBruto > 0 ? 'Ingreso' : montoBruto < 0 ? 'Gasto' : '';
+                    const comision2  = montoBruto !== 0 ? comision / montoBruto : 0;
+                    const retencion2 = montoBruto !== 0 ? iibb    / montoBruto : 0;
 
                     // Saltar filas sin descripción (ej: fila de saldo inicial del período)
                     if (!desc) continue;
 
-                    rows.push({ fecha, desc, montoBruto, comision, iibb, medioPago, plataforma, tipoMedio });
+                    rows.push({ fecha, desc, montoBruto, queEs, comision, comision2, iibb, retencion2, medioPago, plataforma, tipoMedio });
                 }
 
                 parsedRows = rows;
@@ -332,28 +338,43 @@ function detectarColumnas(hdrs) {
 document.getElementById('btn-convertir').addEventListener('click', () => {
     if (!parsedRows || parsedRows.length === 0) return;
     try {
+        // Columnas: 0=Fecha 1=Desc 2=MontoBruto 3=QueEs 4=Comision 5=Comision2 6=IIBB 7=Retencion2 8=MedioPago 9=Plataforma 10=TipoMedio
         const aoa = [[
-            'Fecha', 'Descripción', 'Monto Bruto',
-            'Comisión Mercado Pago', 'Retención IIBB',
+            'Fecha', 'Descripción', 'Monto Bruto', 'Que Es',
+            'Comisión Mercado Pago', 'Comision2',
+            'Retención IIBB', 'Retencion2',
             'Medio de Pago', 'Plataforma', 'Tipo de Medio de Pago',
         ]];
         parsedRows.forEach(r => aoa.push([
-            r.fecha, r.desc, r.montoBruto,
-            r.comision, r.iibb,
+            r.fecha, r.desc, r.montoBruto, r.queEs,
+            r.comision, r.comision2,
+            r.iibb, r.retencion2,
             r.medioPago, r.plataforma, r.tipoMedio,
         ]));
 
         const wsOut = XLSX.utils.aoa_to_sheet(aoa);
         wsOut['!cols'] = [
             { wch: 13 },  // Fecha
-            { wch: 45 },  // Descripción
+            { wch: 40 },  // Descripción
             { wch: 16 },  // Monto Bruto
+            { wch: 10 },  // Que Es
             { wch: 18 },  // Comisión
+            { wch: 11 },  // Comision2
             { wch: 16 },  // IIBB
-            { wch: 18 },  // Medio de Pago
-            { wch: 22 },  // Plataforma
+            { wch: 11 },  // Retencion2
+            { wch: 22 },  // Medio de Pago
+            { wch: 18 },  // Plataforma
             { wch: 22 },  // Tipo de Medio
         ];
+
+        // Formato porcentaje para Comision2 (col 5) y Retencion2 (col 7)
+        const rng = XLSX.utils.decode_range(wsOut['!ref']);
+        for (let row = 1; row <= rng.e.r; row++) {
+            const c2 = wsOut[XLSX.utils.encode_cell({ r: row, c: 5 })];
+            if (c2) c2.z = '0.00%';
+            const r2 = wsOut[XLSX.utils.encode_cell({ r: row, c: 7 })];
+            if (r2) r2.z = '0.00%';
+        }
 
         const wbOut = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wbOut, wsOut, 'MP');
@@ -378,10 +399,13 @@ function renderPreview(rows) {
         rows.slice(0, MAX).map(r =>
             `<tr>
                 <td class="mono" style="white-space:nowrap">${r.fecha}</td>
-                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.desc)}">${r.desc}</td>
+                <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.desc)}">${r.desc}</td>
                 <td class="mono" style="text-align:right">${fmtNum(r.montoBruto)}</td>
+                <td style="font-size:12px">${r.queEs === 'Ingreso' ? '<span style="color:#065f46;font-weight:600">Ingreso</span>' : r.queEs === 'Gasto' ? '<span style="color:#991b1b;font-weight:600">Gasto</span>' : '—'}</td>
                 <td class="mono" style="text-align:right;color:var(--red)">${fmtNum(r.comision)}</td>
+                <td class="mono" style="text-align:right;color:var(--sub);font-size:12px">${fmtPct(r.comision2)}</td>
                 <td class="mono" style="text-align:right;color:var(--red)">${fmtNum(r.iibb)}</td>
+                <td class="mono" style="text-align:right;color:var(--sub);font-size:12px">${fmtPct(r.retencion2)}</td>
                 <td style="font-size:12px">${r.medioPago}</td>
                 <td style="font-size:12px">${r.plataforma}</td>
                 <td style="font-size:12px">${r.tipoMedio}</td>
@@ -441,6 +465,11 @@ function toNum(v) {
 function fmtNum(n) {
     if (!n && n !== 0) return '—';
     return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
+
+function fmtPct(n) {
+    if (!n && n !== 0) return '—';
+    return (n * 100).toFixed(2) + '%';
 }
 
 function esc(s) {
