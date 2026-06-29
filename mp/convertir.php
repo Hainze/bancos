@@ -284,36 +284,38 @@ function findHeaderRow(raw) {
 }
 
 // ── Detección de columnas ──────────────────────────────────────────────────────
+// Nombres exactos del Excel de Mercado Pago (normalizados)
+const MP_COLS = {
+    'fecha de liberacion':                                     'fecha',
+    'descripcion':                                             'desc',
+    'monto bruto de la operacion':                            'montoBruto',
+    'comision de mercado pago o mercado libre (incluye iva)': 'comision',
+    'impuestos cobrados por retenciones iibb':                'iibb',
+    'medio de pago':                                          'medioPago',
+    'plataforma de cobro':                                    'plataforma',
+    'tipo de medio de pago':                                  'tipoMedio',
+};
+
 function detectarColumnas(hdrs) {
-    const cols = {
-        fecha: -1, desc: -1, montoBruto: -1,
-        comision: -1, iibb: -1, medioPago: -1,
-        plataforma: -1, tipoMedio: -1,
-    };
+    const cols = { fecha:-1, desc:-1, montoBruto:-1, comision:-1, iibb:-1, medioPago:-1, plataforma:-1, tipoMedio:-1 };
 
     hdrs.forEach((h, i) => {
-        // Fecha de liberación (no la de aprobación)
-        if      (cols.fecha < 0      && /fecha.*libera/.test(h))               cols.fecha      = i;
-        // Descripción
-        else if (cols.desc < 0       && /^descripci/.test(h))                  cols.desc       = i;
-        // Monto bruto de la operación
-        else if (cols.montoBruto < 0 && /monto.*bruto/.test(h))                cols.montoBruto = i;
-        // Comisión (incluye IVA)
-        else if (cols.comision < 0   && /comisi/.test(h))                      cols.comision   = i;
-        // Retenciones IIBB
-        else if (cols.iibb < 0       && /iibb/.test(h))                        cols.iibb       = i;
-        // Medio de pago (no "tipo de medio")
-        else if (cols.medioPago < 0  && /^medio.*pago/.test(h))                cols.medioPago  = i;
-        // Plataforma de cobro
-        else if (cols.plataforma < 0 && /plataforma/.test(h))                  cols.plataforma = i;
-        // Tipo de medio de pago
-        else if (cols.tipoMedio < 0  && /tipo.*medio/.test(h))                 cols.tipoMedio  = i;
+        // 1) Match exacto por nombre completo
+        const exactKey = MP_COLS[h];
+        if (exactKey && cols[exactKey] < 0) { cols[exactKey] = i; return; }
+
+        // 2) Regex fallback
+        if      (cols.fecha      < 0 && /fecha.*libera/.test(h))   cols.fecha      = i;
+        else if (cols.desc       < 0 && /^descripci/.test(h))      cols.desc       = i;
+        else if (cols.montoBruto < 0 && /monto.*bruto/.test(h))    cols.montoBruto = i;
+        else if (cols.comision   < 0 && /comisi/.test(h))          cols.comision   = i;
+        else if (cols.iibb       < 0 && /iibb/.test(h))            cols.iibb       = i;
+        else if (cols.medioPago  < 0 && /^medio.*pago$/.test(h))   cols.medioPago  = i;
+        else if (cols.plataforma < 0 && /plataforma/.test(h))      cols.plataforma = i;
+        else if (cols.tipoMedio  < 0 && /tipo.*medio/.test(h))     cols.tipoMedio  = i;
     });
 
-    // Fallback por posición conocida del Excel MP estándar:
-    // A=FechaLiberacion B=IdOperacion C=Descripcion D=MontoNetoAcreditado
-    // E=MontoNetoDebitado F=MontoBruto G=Comision H=IIBB I=MedioPago
-    // J=FechaAprobacion K=CanalVenta L=Plataforma M=Saldo N=TipoMedio O=PurchaseId
+    // Fallback posicional (Excel MP estándar: A B C D E F G H I J K L M N O)
     if (cols.fecha      < 0) cols.fecha      = 0;
     if (cols.desc       < 0) cols.desc       = 2;
     if (cols.montoBruto < 0) cols.montoBruto = 5;
@@ -400,33 +402,39 @@ function norm(s) {
 
 function fmtFecha(v) {
     if (!v) return '';
-    // Date object de SheetJS (cellDates: true)
+    // Date object: SheetJS crea fechas en UTC, usar getUTC* para evitar desfase de zona horaria
     if (v instanceof Date) {
-        return String(v.getDate()).padStart(2, '0') + '/' +
-               String(v.getMonth() + 1).padStart(2, '0') + '/' +
-               v.getFullYear();
+        if (isNaN(v.getTime())) return '';
+        return String(v.getUTCDate()).padStart(2, '0') + '/' +
+               String(v.getUTCMonth() + 1).padStart(2, '0') + '/' +
+               v.getUTCFullYear();
     }
-    let s = String(v).trim();
+    const s = String(v).trim();
     if (!s || s === 'Invalid Date') return '';
-    // Quitar la parte de hora si viene con ella: "2026-05-29 10:35:00" o "2026-05-29T10:35"
-    s = s.split(/[\sT]/)[0];
-    // yyyy-mm-dd
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-        const [y, m, d] = s.split('-');
-        return d + '/' + m + '/' + y;
-    }
+    // Extraer yyyy-mm-dd del inicio (maneja ISO con timezone: "2026-01-01T00:00:00.000-03:00")
+    const mISO = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (mISO) return mISO[3] + '/' + mISO[2] + '/' + mISO[1];
     // dd/mm/yyyy
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
-        const [d, m, y] = s.split('/');
-        return d.padStart(2, '0') + '/' + m.padStart(2, '0') + '/' + y;
-    }
+    const mDMY = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (mDMY) return mDMY[1].padStart(2,'0') + '/' + mDMY[2].padStart(2,'0') + '/' + mDMY[3];
     return s;
 }
 
 function toNum(v) {
     if (v === '' || v == null) return 0;
     if (typeof v === 'number') return v;
-    const s = String(v).replace(/[$\s ]/g, '').replace(/\./g, '').replace(',', '.');
+    let s = String(v).trim().replace(/[$\s ]/g, '');
+    if (!s) return 0;
+    if (s.includes(',') && s.includes('.')) {
+        if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+            s = s.replace(/\./g, '').replace(',', '.'); // argentino 1.234,56
+        } else {
+            s = s.replace(/,/g, '');                    // US 1,234.56
+        }
+    } else if (s.includes(',')) {
+        s = s.replace(',', '.');
+    }
+    // solo punto = decimal estandar (12531215.48) no modificar
     return parseFloat(s) || 0;
 }
 
