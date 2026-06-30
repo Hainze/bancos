@@ -231,7 +231,7 @@ $grouped = [];
 foreach ($tools as $t) {
     $grouped[$t['grupo']][] = $t;
 }
-$totalActivos = count(array_filter($tools, fn($t) => $t['badge_type'] === 'green'));
+$totalActivos = count(array_filter($tools, fn($t) => in_array($t['badge_type'], ['green', 'blue'], true)));
 ?>
 <!DOCTYPE html>
 <html lang="es">

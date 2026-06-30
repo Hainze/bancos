@@ -1,6 +1,28 @@
 <?php
 require_once __DIR__ . '/config.php';
 
+function safeRedirect(string $redirect, string $fallback = '/index.php'): string {
+    $redirect = trim($redirect);
+    if ($redirect === '') {
+        return $fallback;
+    }
+
+    $parts = parse_url($redirect);
+    if ($parts === false) {
+        return $fallback;
+    }
+
+    if (isset($parts['scheme'], $parts['host']) || str_starts_with($redirect, '//')) {
+        return $fallback;
+    }
+
+    if (!str_starts_with($redirect, '/')) {
+        return $fallback;
+    }
+
+    return $redirect;
+}
+
 // Already logged in
 if (isLoggedIn()) {
     header('Location: /index.php');
@@ -13,8 +35,8 @@ $redirect = $_GET['r'] ?? '/index.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email    = trim($_POST['email']    ?? '');
-    $password = trim($_POST['password'] ?? '');
-    $redirect = $_POST['redirect']      ?? '/index.php';
+    $password = $_POST['password'] ?? '';
+    $redirect = safeRedirect($_POST['redirect'] ?? '/index.php');
 
     if (!$email || !$password) {
         $error = 'Completá todos los campos.';
@@ -26,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $stmt->fetch();
 
             if ($user && password_verify($password, $user['password_hash'])) {
+                session_regenerate_id(true);
                 $_SESSION['usuario_id'] = $user['id'];
                 $_SESSION['usuario']    = [
                     'id'     => $user['id'],
@@ -37,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->prepare("UPDATE usuarios SET last_login = NOW() WHERE id = ?")
                     ->execute([$user['id']]);
 
-                header('Location: ' . (filter_var($redirect, FILTER_VALIDATE_URL) ? '/' : $redirect));
+                header('Location: ' . $redirect);
                 exit;
             } else {
                 $error = 'Email o contraseña incorrectos.';

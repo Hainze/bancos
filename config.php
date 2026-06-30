@@ -9,10 +9,13 @@ define('APP_NAME',   'SmartAdmin');
 define('APP_URL',    'https://bancos.smartadmin.me');
 
 if (session_status() === PHP_SESSION_NONE) {
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+
     session_set_cookie_params([
         'lifetime' => 86400 * 7,
         'path'     => '/',
-        'secure'   => false,
+        'secure'   => $isHttps,
         'httponly' => true,
         'samesite' => 'Lax',
     ]);
